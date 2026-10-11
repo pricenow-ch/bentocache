@@ -45,7 +45,6 @@ test.group('Redis driver', (group) => {
     cleanup(async () => {
       await redis2.disconnect()
       await ioRedis2.quit()
-      await ioredis.quit()
     })
 
     await redis2.set('key', 'value')

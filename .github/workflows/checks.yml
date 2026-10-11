@@ -1,6 +1,12 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -17,10 +23,10 @@ jobs:
       - name: Install pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@latest --activate
+          corepack prepare pnpm@10.33.0 --activate
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
@@ -39,11 +45,11 @@ jobs:
       - name: Install pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@latest --activate
+          corepack prepare pnpm@10.33.0 --activate
 
       - name: Install dependencies
         run: |
-          pnpm install
+          pnpm install --frozen-lockfile
           pnpm -r build
 
       - name: Typecheck
@@ -63,10 +69,10 @@ jobs:
       - name: Install pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@latest --activate
+          corepack prepare pnpm@10.33.0 --activate
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm -C packages/bentocache build
@@ -115,11 +121,11 @@ jobs:
       - name: Install pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@latest --activate
+          corepack prepare pnpm@10.33.0 --activate
 
       - name: Install dependencies
         run: |
-          pnpm install
+          pnpm install --frozen-lockfile
           pnpm -r build
 
       - name: Run tests

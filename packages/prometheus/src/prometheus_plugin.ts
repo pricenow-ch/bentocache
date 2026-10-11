@@ -1,6 +1,6 @@
 import promClient from 'prom-client'
-import type { BentoCache } from 'bentocache'
-import type { BentoCachePlugin } from 'bentocache/types'
+import type { BentoCache } from '@pricenow/bentocache'
+import type { BentoCachePlugin } from '@pricenow/bentocache/types'
 
 import type { PrometheusPluginOptions } from './types.js'
 

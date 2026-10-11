@@ -1,5 +1,5 @@
 import { trace } from '@opentelemetry/api'
-import { memoryDriver } from 'bentocache/drivers/memory'
+import { memoryDriver } from '@pricenow/bentocache/drivers/memory'
 import {
   BasicTracerProvider,
   InMemorySpanExporter,
@@ -60,7 +60,7 @@ export const setupInstrumentation = async (
   const moduleDefinitions = (instrumentation as any)._modules as any[]
   const moduleDefinition = moduleDefinitions[0]
 
-  const bentocacheModule = await import('bentocache')
+  const bentocacheModule = await import('@pricenow/bentocache')
 
   if (mode === 'modulePatch') {
     moduleDefinition.patch?.(bentocacheModule)

@@ -1,4 +1,4 @@
-import type { CacheDriver, L1CacheDriver, L2CacheDriver } from 'bentocache/types'
+import type { CacheDriver, L1CacheDriver, L2CacheDriver } from '@pricenow/bentocache/types'
 
 import { ChaosInjector } from './chaos_injector.js'
 

@@ -8,9 +8,9 @@ import { Bench } from 'tinybench'
 import KeyvRedis from '@keyv/redis'
 import { createCache } from 'cache-manager'
 import { CacheableMemory } from 'cacheable'
-import { BentoCache, bentostore } from 'bentocache'
-import { redisDriver } from 'bentocache/drivers/redis'
-import { memoryDriver } from 'bentocache/drivers/memory'
+import { BentoCache, bentostore } from '@pricenow/bentocache'
+import { redisDriver } from '@pricenow/bentocache/drivers/redis'
+import { memoryDriver } from '@pricenow/bentocache/drivers/memory'
 
 import { REDIS_CREDENTIALS } from './helpers.js'
 

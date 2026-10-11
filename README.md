@@ -1,3 +1,9 @@
+> This Pricenow fork will continuously track the latest changes from the
+> [upstream Bentocache repository](https://github.com/Julien-R44/bentocache), while
+> introducing opinionated fixes, improvements, and functionality from the
+> Pricenow engineering team. See [RELEASING.md](./RELEASING.md) for installation,
+> release, and upstream merge instructions.
+
 ![image](https://github.com/Julien-R44/bentocache/assets/8337858/4aa1023f-7a4f-4d73-8400-05baafbc899a)
 
 <p align="center">

@@ -1,0 +1,75 @@
+name: Publish @pricenow/bentocache
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact version in packages/bentocache/package.json
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-pricenow-bentocache
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    if: github.repository == 'pricenow-ch/bentocache' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check requested version
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import fs from 'node:fs'
+          const manifest = JSON.parse(fs.readFileSync('packages/bentocache/package.json', 'utf8'))
+          assert.equal(manifest.name, '@pricenow/bentocache')
+          assert.equal(manifest.version, process.env.EXPECTED_VERSION)
+          assert.equal(manifest.publishConfig.access, 'public')
+          assert.notEqual(manifest.publishConfig.provenance, false)
+          NODE
+
+  validate:
+    needs: check-version
+    uses: ./.github/workflows/checks.yml
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+      - name: Install release tools
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          npm install --global npm@11
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build, pack, and verify
+        run: |
+          pnpm release:pack
+          pnpm release:verify
+      - name: Publish exact version using npm trusted publishing
+        run: npm publish ./dist/bentocache.tgz --access public --provenance
+      - name: Record GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "@pricenow/bentocache@${RELEASE_VERSION}" \
+            --target "$GITHUB_SHA" \
+            --title "@pricenow/bentocache@${RELEASE_VERSION}" \
+            --generate-notes

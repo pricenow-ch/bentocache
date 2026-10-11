@@ -1,8 +1,8 @@
 import { pino } from 'pino'
-import { BentoCache, bentostore } from 'bentocache'
-import { redisDriver } from 'bentocache/drivers/redis'
-import { memoryDriver } from 'bentocache/drivers/memory'
+import { BentoCache, bentostore } from '@pricenow/bentocache'
+import { redisDriver } from '@pricenow/bentocache/drivers/redis'
 import { prometheusPlugin } from '@bentocache/plugin-prometheus'
+import { memoryDriver } from '@pricenow/bentocache/drivers/memory'
 
 export const bento = new BentoCache({
   default: 'memoryAndRedis',

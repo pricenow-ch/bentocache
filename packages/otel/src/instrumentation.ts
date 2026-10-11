@@ -1,6 +1,6 @@
 import { suppressTracing } from '@opentelemetry/core'
 import type { Context, Span } from '@opentelemetry/api'
-import type { CacheOperationMessage } from 'bentocache'
+import type { CacheOperationMessage } from '@pricenow/bentocache'
 import type { TracingChannelSubscribers } from 'node:diagnostics_channel'
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api'
 import {
@@ -288,7 +288,7 @@ export class BentoCacheInstrumentation extends InstrumentationBase<BentoCacheIns
   protected init() {
     return [
       new InstrumentationNodeModuleDefinition(
-        'bentocache',
+        '@pricenow/bentocache',
         ['>=1.6.0'],
         (moduleExports) => {
           const exports = this.#getModuleExports(moduleExports)

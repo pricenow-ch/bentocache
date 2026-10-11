@@ -1,8 +1,8 @@
 import { test } from '@japa/runner'
 import { sleep } from '@julr/utils/misc'
 import { Registry, register } from 'prom-client'
-import { BentoCache, bentostore } from 'bentocache'
-import { memoryDriver } from 'bentocache/drivers/memory'
+import { BentoCache, bentostore } from '@pricenow/bentocache'
+import { memoryDriver } from '@pricenow/bentocache/drivers/memory'
 
 import { prometheusPlugin } from '../index.js'
 import type { PrometheusPluginOptions } from '../src/types.js'

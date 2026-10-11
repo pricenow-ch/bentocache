@@ -2,6 +2,7 @@
   "name": "@bentocache/otel",
   "type": "module",
   "version": "0.1.2",
+  "private": true,
   "description": "OpenTelemetry instrumentation for Bentocache",
   "author": "Julien Ripouteau <julien@ripouteau.com>",
   "license": "MIT",
@@ -31,7 +32,7 @@
     "checks": "pnpm lint && pnpm typecheck"
   },
   "peerDependencies": {
-    "bentocache": "^1.6.0"
+    "@pricenow/bentocache": "^1.6.0"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
@@ -41,7 +42,7 @@
   "devDependencies": {
     "@julr/utils": "^1.9.0",
     "@opentelemetry/sdk-trace-base": "^2.6.1",
-    "bentocache": "workspace:*"
+    "@pricenow/bentocache": "workspace:*"
   },
   "tsup": {
     "entry": [
