@@ -1,7 +1,7 @@
 # @pricenow/bentocache
 
 Pricenow's fork of [Bentocache](https://github.com/Julien-R44/bentocache), published
-privately under the `@pricenow` npm scope. Installing requires package access.
+publicly as `@pricenow/bentocache`. Installing does not require npm credentials.
 
 ```sh
 pnpm add @pricenow/bentocache
@@ -15,7 +15,7 @@ import { memoryDriver } from '@pricenow/bentocache/drivers/memory'
 Use the upstream API documentation below with scoped imports. The Prometheus
 and OpenTelemetry companions are currently retained for development only.
 Fork issues and release instructions are in the
-[Pricenow repository](https://github.com/pricenow-ch/bentocache).
+[Pricenow repository](https://github.com/pricenow-ch/bentocache/blob/main/RELEASING.md).
 
 ![image](https://github.com/Julien-R44/bentocache/assets/8337858/4aa1023f-7a4f-4d73-8400-05baafbc899a)
 

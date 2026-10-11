@@ -19,7 +19,8 @@ try {
 
   assert.equal(manifest.name, '@pricenow/bentocache')
   assert.equal(manifest.version, expected.version)
-  assert.equal(manifest.publishConfig.access, 'restricted')
+  assert.equal(manifest.publishConfig.access, 'public')
+  assert.notEqual(manifest.publishConfig.provenance, false)
   assert.equal(manifest.publishConfig.registry, 'https://registry.npmjs.org/')
   assert.notEqual(manifest.private, true)
   assert.equal(manifest.repository.url, 'git+https://github.com/pricenow-ch/bentocache.git')

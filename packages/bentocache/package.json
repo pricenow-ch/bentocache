@@ -128,10 +128,9 @@
   },
   "prettier": "@julr/tooling-configs/prettier",
   "publishConfig": {
-    "access": "restricted",
+    "access": "public",
     "registry": "https://registry.npmjs.org/",
-    "tag": "latest",
-    "provenance": false
+    "tag": "latest"
   },
   "c8": {
     "reporter": [

@@ -31,7 +31,8 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync('packages/bentocache/package.json', 'utf8'))
           assert.equal(manifest.name, '@pricenow/bentocache')
           assert.equal(manifest.version, process.env.EXPECTED_VERSION)
-          assert.equal(manifest.publishConfig.access, 'restricted')
+          assert.equal(manifest.publishConfig.access, 'public')
+          assert.notEqual(manifest.publishConfig.provenance, false)
           NODE
 
   validate:
@@ -62,7 +63,7 @@ jobs:
           pnpm release:pack
           pnpm release:verify
       - name: Publish exact version using npm trusted publishing
-        run: npm publish ./dist/bentocache.tgz --access restricted --provenance=false
+        run: npm publish ./dist/bentocache.tgz --access public --provenance
       - name: Record GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
