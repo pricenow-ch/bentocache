@@ -1,10 +1,19 @@
 {
-  "name": "bentocache",
+  "name": "@pricenow/bentocache",
   "type": "module",
   "version": "1.6.1",
-  "description": "Multi-tier cache module for Node.js. Redis, Upstash, CloudfareKV, File, in-memory and others drivers",
+  "description": "Pricenow fork of Bentocache, a multi-tier cache module for Node.js",
   "author": "Julien Ripouteau <julien@ripouteau.com>",
   "license": "MIT",
+  "homepage": "https://github.com/pricenow-ch/bentocache#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pricenow-ch/bentocache.git",
+    "directory": "packages/bentocache"
+  },
+  "bugs": {
+    "url": "https://github.com/pricenow-ch/bentocache/issues"
+  },
   "keywords": [
     "caching",
     "redis",
@@ -119,8 +128,10 @@
   },
   "prettier": "@julr/tooling-configs/prettier",
   "publishConfig": {
-    "access": "public",
-    "tag": "latest"
+    "access": "restricted",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest",
+    "provenance": false
   },
   "c8": {
     "reporter": [
@@ -136,13 +147,13 @@
   },
   "release-it": {
     "git": {
-      "commitMessage": "chore(release): bentocache@${version}",
+      "commitMessage": "chore(release): @pricenow/bentocache@${version}",
       "tagAnnotation": "release ${version}",
-      "tagName": "bentocache@${version}"
+      "tagName": "@pricenow/bentocache@${version}"
     },
     "github": {
       "release": true,
-      "releaseName": "bentocache@${version}",
+      "releaseName": "@pricenow/bentocache@${version}",
       "web": true
     }
   }

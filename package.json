@@ -14,7 +14,9 @@
     "build": "pnpm run -r build",
     "lint": "eslint .",
     "checks": "pnpm lint && pnpm typecheck",
-    "test": "pnpm run -r --parallel test"
+    "test": "pnpm run -r --parallel test",
+    "release:pack": "pnpm -C packages/bentocache build && mkdir -p dist && pnpm -C packages/bentocache pack --out ../../dist/bentocache.tgz",
+    "release:verify": "node scripts/verify_package.mjs dist/bentocache.tgz"
   },
   "devDependencies": {
     "@adonisjs/tsconfig": "^1.4.1",

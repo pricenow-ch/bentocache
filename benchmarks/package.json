@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "@keyv/redis": "^4.6.0",
-    "bentocache": "workspace:*",
+    "@pricenow/bentocache": "workspace:*",
     "cache-manager": "^6.4.3",
     "cacheable": "^1.10.4",
     "ioredis": "^5.8.2",

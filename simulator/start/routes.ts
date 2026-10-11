@@ -1,10 +1,14 @@
 import vine from '@vinejs/vine'
 import { is } from '@julr/utils/is'
-import { BentoCache, bentostore } from 'bentocache'
 import router from '@adonisjs/core/services/router'
-import { memoryDriver } from 'bentocache/drivers/memory'
-import { redisDriver, redisBusDriver } from 'bentocache/drivers/redis'
-import type { CreateBusDriverResult, CreateDriverResult, L2CacheDriver } from 'bentocache/types'
+import { BentoCache, bentostore } from '@pricenow/bentocache'
+import { memoryDriver } from '@pricenow/bentocache/drivers/memory'
+import { redisDriver, redisBusDriver } from '@pricenow/bentocache/drivers/redis'
+import type {
+  CreateBusDriverResult,
+  CreateDriverResult,
+  L2CacheDriver,
+} from '@pricenow/bentocache/types'
 
 import { ChaosBus } from './chaos/chaos_bus.js'
 import { ChaosCache } from './chaos/chaos_cache.js'

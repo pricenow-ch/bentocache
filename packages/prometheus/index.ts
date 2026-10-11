@@ -1,4 +1,4 @@
-import type { BentoCachePlugin } from 'bentocache/types'
+import type { BentoCachePlugin } from '@pricenow/bentocache/types'
 
 import type { PrometheusPluginOptions } from './src/types.js'
 import { PrometheusPlugin } from './src/prometheus_plugin.js'

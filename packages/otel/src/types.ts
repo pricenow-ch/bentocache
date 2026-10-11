@@ -1,4 +1,4 @@
-import type { CacheOperationMessage } from 'bentocache'
+import type { CacheOperationMessage } from '@pricenow/bentocache'
 import type { TracingChannelSubscribers } from 'node:diagnostics_channel'
 import type { InstrumentationConfig } from '@opentelemetry/instrumentation'
 

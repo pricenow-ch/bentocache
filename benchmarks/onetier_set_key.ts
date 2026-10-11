@@ -7,8 +7,8 @@ import Keyv from 'keyv'
 import { Bench } from 'tinybench'
 import KeyvRedis from '@keyv/redis'
 import { createCache } from 'cache-manager'
-import { BentoCache, bentostore } from 'bentocache'
-import { redisDriver } from 'bentocache/drivers/redis'
+import { BentoCache, bentostore } from '@pricenow/bentocache'
+import { redisDriver } from '@pricenow/bentocache/drivers/redis'
 
 import { REDIS_CREDENTIALS } from './helpers.js'
 
