@@ -263,6 +263,8 @@ export class BentoCacheInstrumentation extends InstrumentationBase<BentoCacheIns
 
         if (keys.length) attributes['cache.keys'] = keys
       }
+
+      if (message.tags?.length) attributes['cache.tags'] = message.tags
     }
 
     return attributes

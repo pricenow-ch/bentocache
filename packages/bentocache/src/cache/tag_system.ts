@@ -1,6 +1,7 @@
 import type { CacheStack } from './cache_stack.js'
 import type { CacheEntry } from './cache_entry/cache_entry.js'
 import type { GetSetFactoryContext } from '../types/helpers.js'
+import type { EntryTagState } from '../types/internals/index.js'
 import type { GetSetHandler } from './get_set/get_set_handler.js'
 import {
   createCacheEntryOptions,
@@ -9,9 +10,17 @@ import {
 
 export class TagSystem {
   #getSetHandler!: GetSetHandler
-  #kTagPrefix = '___bc:t:'
 
-  #expireOptions = createCacheEntryOptions({})
+  /**
+   * Prefix of the keys storing the last `expireByTag` timestamp of a tag
+   */
+  #kExpirePrefix = '___bc:t:'
+
+  /**
+   * Prefix of the keys storing the last `deleteByTag` timestamp of a tag
+   */
+  #kDeletePrefix = '___bc:td:'
+
   #getSetTagOptions = createCacheEntryOptions({
     ttl: '10d',
     grace: '10d',
@@ -24,287 +33,115 @@ export class TagSystem {
   }
 
   /**
-   * Get the cache key for a tag
+   * Get the cache key storing the expiration timestamp of a tag
    */
   getTagCacheKey(tag: string) {
-    return this.#kTagPrefix + tag
+    return this.#kExpirePrefix + tag
+  }
+
+  /**
+   * Get the cache key storing the deletion timestamp of a tag
+   */
+  getTagDeletionCacheKey(tag: string) {
+    return this.#kDeletePrefix + tag
   }
 
   /**
    * Check if a key is a tag key
    */
   isTagKey(key: string) {
-    return key.startsWith(this.#kTagPrefix)
+    return key.startsWith(this.#kExpirePrefix) || key.startsWith(this.#kDeletePrefix)
   }
 
   /**
    * The GetSet factory when getting a tag from the cache.
-   * Handles backward compatibility with old schema (timestamp only) and new schema (metadata object).
    */
-  #getTagFactory = (ctx: GetSetFactoryContext) => {
-    const rawValue = ctx.gracedEntry?.value
+  #getTagFactory(ctx: GetSetFactoryContext) {
+    const result = ctx.gracedEntry?.value ?? 0
+    if (result === 0) ctx.setOptions({ skipBusNotify: true, skipL2Write: true })
 
-    if (this.#isEmptyValue(rawValue)) {
-      return this.#createDefaultTagData(ctx)
-    }
-
-    if (this.#isLegacySchema(rawValue)) {
-      return this.#migrateToObjectSchema(rawValue, ctx)
-    }
-
-    if (this.#isValidNewSchema(rawValue)) {
-      return this.#processNewSchema(rawValue, ctx)
-    }
-
-    return this.#handleUnexpectedData(ctx)
-  }
-
-  #isEmptyValue(value: unknown): boolean {
-    return value === undefined || value === null
-  }
-
-  #isLegacySchema(value: unknown): boolean {
-    return typeof value === 'number'
-  }
-
-  #isValidNewSchema(value: unknown): boolean {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      'timestamp' in value &&
-      value.timestamp !== undefined &&
-      'type' in value &&
-      value.type !== undefined
-    )
-  }
-
-  #createDefaultTagData(ctx: GetSetFactoryContext) {
-    const result = { timestamp: 0, type: 'soft' as const }
-    ctx.setOptions({ skipBusNotify: true, skipL2Write: true })
     return result
   }
 
-  #migrateToObjectSchema(rawValue: number, ctx: GetSetFactoryContext) {
-    const migratedResult = { timestamp: rawValue, type: 'soft' as const }
-    ctx.setOptions({
-      skipBusNotify: true,
-      skipL2Write: false, // Ensure the migrated value is written to L2 cache
+  /**
+   * Returns the most recent timestamp stored for the given tag keys
+   */
+  async #getLatestTimestamp(keys: string[]) {
+    const timestamps = await Promise.all(
+      keys.map((key) =>
+        this.#getSetHandler.handle(key, this.#getTagFactory, this.#getSetTagOptions.cloneWith({})),
+      ),
+    )
+
+    return Math.max(0, ...timestamps.filter((timestamp) => typeof timestamp === 'number'))
+  }
+
+  /**
+   * Resolve the state of an entry against its tags :
+   * - `deleted` if it was created before a `deleteByTag` of one of its tags
+   * - `expired` if it was created before an `expireByTag` of one of its tags
+   * - `valid` otherwise
+   *
+   * Deletion takes precedence over expiration, whatever the order of the operations.
+   */
+  async getEntryTagState(entry: CacheEntry): Promise<EntryTagState> {
+    if (this.isTagKey(entry.getKey())) return 'valid'
+
+    const tags = entry.getTags()
+    if (!tags.length) return 'valid'
+
+    const [deletedAt, expiredAt] = await Promise.all([
+      this.#getLatestTimestamp(tags.map((tag) => this.getTagDeletionCacheKey(tag))),
+      this.#getLatestTimestamp(tags.map((tag) => this.getTagCacheKey(tag))),
+    ])
+
+    const createdAt = entry.getCreatedAt()
+    if (createdAt <= deletedAt) return 'deleted'
+    if (createdAt <= expiredAt) return 'expired'
+
+    return 'valid'
+  }
+
+  /**
+   * Write the current timestamp in the given tag keys
+   */
+  async #writeTagTimestamps(keys: string[], options?: CacheEntryOptions) {
+    const now = Date.now()
+    const writeOptions = this.#getSetTagOptions.cloneWith({
+      suppressL2Errors: options?.suppressL2Errors,
     })
-    return migratedResult
-  }
 
-  #processNewSchema(rawValue: any, ctx: GetSetFactoryContext) {
-    const result = rawValue as { timestamp: number; type: 'hard' | 'soft' }
-    if (result.timestamp === 0) {
-      ctx.setOptions({ skipBusNotify: true, skipL2Write: true })
-    }
-    return result
-  }
-
-  #handleUnexpectedData(ctx: GetSetFactoryContext) {
-    const result = { timestamp: 0, type: 'soft' as const }
-    ctx.setOptions({ skipBusNotify: true, skipL2Write: true })
-    return result
-  }
-
-  /**
-   * Check both hard deletion and soft invalidation for an entry in a single pass.
-   */
-  async checkTagValidation(
-    entry?: CacheEntry,
-  ): Promise<{ isHardDeleted: boolean; isTagInvalidated: boolean }> {
-    if (!this.#shouldValidateEntry(entry)) {
-      return { isHardDeleted: false, isTagInvalidated: false }
+    for (const key of new Set(keys)) {
+      await this.stack.set(key, now, writeOptions)
     }
 
-    const tags = entry!.getTags()
-
-    for (const tag of tags) {
-      const tagData = await this.#getTagData(tag)
-      const validationResult = await this.#validateEntryAgainstTag(entry!, tag, tagData)
-
-      if (validationResult.shouldReturn) {
-        return validationResult.result
-      }
-    }
-
-    return { isHardDeleted: false, isTagInvalidated: false }
-  }
-
-  #shouldValidateEntry(entry?: CacheEntry): boolean {
-    if (!entry) return false
-    if (this.isTagKey(entry.getKey())) return false
-    if (!entry.getTags().length) return false
     return true
-  }
-
-  async #getTagData(tag: string) {
-    return this.#getSetHandler.handle(
-      this.getTagCacheKey(tag),
-      this.#getTagFactory,
-      this.#getSetTagOptions.cloneWith({}),
-    )
-  }
-
-  async #validateEntryAgainstTag(
-    entry: CacheEntry,
-    tag: string,
-    tagData: any,
-  ): Promise<{
-    shouldReturn: boolean
-    result: { isHardDeleted: boolean; isTagInvalidated: boolean }
-  }> {
-    // Handle legacy schema data that needs runtime migration
-    if (this.#isLegacySchema(tagData)) {
-      return this.#handleLegacyTagValidation(entry, tag, tagData)
-    }
-
-    // Handle new schema validation
-    return this.#handleNewSchemaValidation(entry, tagData)
-  }
-
-  async #handleLegacyTagValidation(
-    entry: CacheEntry,
-    tag: string,
-    legacyTimestamp: number,
-  ): Promise<{
-    shouldReturn: boolean
-    result: { isHardDeleted: boolean; isTagInvalidated: boolean }
-  }> {
-    const migratedData = { timestamp: legacyTimestamp, type: 'soft' as const }
-
-    await this.#writeMigratedTagData(tag, migratedData)
-
-    if (this.#shouldInvalidateEntry(entry, migratedData)) {
-      await this.stack.expire(entry.getKey(), this.#expireOptions)
-      return {
-        shouldReturn: true,
-        result: { isHardDeleted: false, isTagInvalidated: true },
-      }
-    }
-
-    return { shouldReturn: false, result: { isHardDeleted: false, isTagInvalidated: false } }
-  }
-
-  async #handleNewSchemaValidation(
-    entry: CacheEntry,
-    tagData: { timestamp: number; type: 'hard' | 'soft' },
-  ): Promise<{
-    shouldReturn: boolean
-    result: { isHardDeleted: boolean; isTagInvalidated: boolean }
-  }> {
-    if (this.#shouldHardDelete(entry, tagData)) {
-      return {
-        shouldReturn: true,
-        result: { isHardDeleted: true, isTagInvalidated: false },
-      }
-    }
-
-    if (this.#shouldInvalidateEntry(entry, tagData)) {
-      await this.stack.expire(entry.getKey(), this.#expireOptions)
-      return {
-        shouldReturn: true,
-        result: { isHardDeleted: false, isTagInvalidated: true },
-      }
-    }
-
-    return { shouldReturn: false, result: { isHardDeleted: false, isTagInvalidated: false } }
-  }
-
-  async #writeMigratedTagData(tag: string, migratedData: { timestamp: number; type: 'soft' }) {
-    await this.stack.set(
-      this.getTagCacheKey(tag),
-      migratedData,
-      this.#getSetTagOptions.cloneWith({ skipBusNotify: true }),
-    )
-  }
-
-  #shouldHardDelete(
-    entry: CacheEntry,
-    tagData: { timestamp: number; type: 'hard' | 'soft' },
-  ): boolean {
-    return (
-      tagData.type === 'hard' && tagData.timestamp > 0 && entry.getCreatedAt() <= tagData.timestamp
-    )
-  }
-
-  #shouldInvalidateEntry(
-    entry: CacheEntry,
-    tagData: { timestamp: number; type: 'hard' | 'soft' },
-  ): boolean {
-    return (
-      tagData.type === 'soft' && tagData.timestamp > 0 && entry.getCreatedAt() <= tagData.timestamp
-    )
-  }
-
-  /**
-   * Check if an entry is invalidated by a tag and return true if it is.
-   * @deprecated Use checkTagValidation instead for better performance
-   */
-  async isTagInvalidated(entry?: CacheEntry) {
-    const result = await this.checkTagValidation(entry)
-    return result.isTagInvalidated
-  }
-
-  /**
-   * Check if an entry is marked for hard deletion by a tag and return true if it is.
-   * @deprecated Use checkTagValidation instead for better performance
-   */
-  async isTagHardDeleted(entry?: CacheEntry) {
-    const result = await this.checkTagValidation(entry)
-    return result.isHardDeleted
   }
 
   /**
    * Create invalidation keys for a list of tags
    *
-   * We write a `__bc:t:<tag>` key with metadata containing timestamp and type.
+   * We write a `___bc:t:<tag>` key with the current timestamp as value.
    * When we check if a key is invalidated by a tag, we check if the key
    * was created before the tag key value.
    */
   async createTagInvalidations(tags: string[], options?: CacheEntryOptions) {
-    return this.#createTagMarkers(tags, 'soft', options)
+    return this.#writeTagTimestamps(
+      tags.map((tag) => this.getTagCacheKey(tag)),
+      options,
+    )
   }
 
   /**
-   * Create hard deletion marks for a list of tags.
-   * We write a `__bc:t:<tag>` key with metadata containing timestamp and type.
+   * Create deletion keys for a list of tags
+   *
+   * Same as `createTagInvalidations`, but with a `___bc:td:<tag>` key. Entries
+   * created before this timestamp are deleted lazily, the next time they are read.
    */
-  async createTagDeletionTimestamps(tags: string[], options?: CacheEntryOptions) {
-    return this.#createTagMarkers(tags, 'hard', options)
-  }
-
-  async #createTagMarkers(
-    tags: string[],
-    type: 'soft' | 'hard',
-    options?: CacheEntryOptions,
-  ): Promise<boolean> {
-    const timestamp = Date.now()
-    const uniqueTags = this.#getUniqueTags(tags)
-
-    await this.#writeTagMarkers(uniqueTags, timestamp, type, options)
-
-    return true
-  }
-
-  #getUniqueTags(tags: string[]): string[] {
-    return [...new Set(tags)]
-  }
-
-  async #writeTagMarkers(
-    tags: string[],
-    timestamp: number,
-    type: 'soft' | 'hard',
-    options?: CacheEntryOptions,
-  ): Promise<void> {
-    const tagData = { timestamp, type }
-    const writeOptions = this.#getSetTagOptions.cloneWith({
-      suppressL2Errors: options?.suppressL2Errors,
-    })
-
-    for (const tag of tags) {
-      const key = this.getTagCacheKey(tag)
-      await this.stack.set(key, tagData, writeOptions)
-    }
+  async createTagDeletions(tags: string[], options?: CacheEntryOptions) {
+    return this.#writeTagTimestamps(
+      tags.map((tag) => this.getTagDeletionCacheKey(tag)),
+      options,
+    )
   }
 }

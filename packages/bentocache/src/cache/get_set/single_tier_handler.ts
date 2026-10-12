@@ -126,12 +126,15 @@ export class SingleTierHandler {
      * If forceFresh is not true, check in the remote cache first
      */
     let remoteItem: GetCacheValueReturn | undefined
-    let isRemoteItemValid = false
 
     if (!options.forceFresh) {
-      remoteItem = await this.stack.l2?.get(key, options)
-      isRemoteItemValid = await this.stack.isEntryValid(remoteItem)
-      if (isRemoteItemValid) {
+      const remote = await this.stack.validateEntry(
+        await this.stack.l2?.get(key, options),
+        'l2',
+        options,
+      )
+      remoteItem = remote.item
+      if (remote.isValid) {
         return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
       }
     }
@@ -152,9 +155,13 @@ export class SingleTierHandler {
      * already set the value
      */
     if (!options.forceFresh) {
-      remoteItem = await this.stack.l2?.get(key, options)
-      isRemoteItemValid = await this.stack.isEntryValid(remoteItem)
-      if (isRemoteItemValid) {
+      const remote = await this.stack.validateEntry(
+        await this.stack.l2?.get(key, options),
+        'l2',
+        options,
+      )
+      remoteItem = remote.item
+      if (remote.isValid) {
         this.#locks.release(key, releaser)
         return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
       }

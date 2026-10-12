@@ -17,7 +17,7 @@ const slowFetcher = async (url: string, timeout: number = 1000) => {
 }
 
 app.get('/invalidate-users', async (c) => {
-  await bento.deleteByTag({ tags: ['user'] })
+  await bento.expireByTag({ tags: ['user'] })
 
   return c.text('Invalidated users')
 })

@@ -11,10 +11,10 @@ import { cacheEvents } from '../events/cache_events.js'
 import { cacheOperation } from '../tracing_channels.js'
 import type { GetSetHandler } from './get_set/get_set_handler.js'
 import type { BentoCacheOptions } from '../bento_cache_options.js'
-import type { GetCacheValueReturn } from '../types/internals/index.js'
 import type { CacheOperationMessage } from '../types/tracing_channels.js'
 import type { CacheEntryOptions } from './cache_entry/cache_entry_options.js'
 import { createCacheEntryOptions } from './cache_entry/cache_entry_options.js'
+import type { EntryValidation, GetCacheValueReturn } from '../types/internals/index.js'
 import {
   type BusDriver,
   type BusOptions,
@@ -34,6 +34,7 @@ export class CacheStack extends BaseDriver {
   #busOptions?: BusOptions
   #tagSystem: TagSystem
   #namespaceCache: Map<string, CacheStack> = new Map()
+  #tagExpireOptions = createCacheEntryOptions({})
 
   constructor(
     public name: string,
@@ -215,40 +216,49 @@ export class CacheStack extends BaseDriver {
   }
 
   /**
-   * Check if an item is valid.
-   * Valid means :
-   * - Logically not expired ( not graced )
-   * - Not invalidated by a tag
-   * - Not marked for hard deletion by a tag
+   * Validate an item read from a cache layer.
+   *
+   * The item is valid if it is logically not expired ( not graced ) and
+   * not expired by a tag. If it was deleted by a tag, it is removed from the
+   * layer it was read from and dropped from the result, so that it is never
+   * served, even as a graced value.
    */
-  isEntryValid(item: GetCacheValueReturn | undefined): Promise<boolean> | boolean {
-    if (!item) return false
+  validateEntry(
+    item: GetCacheValueReturn | undefined,
+    layer: 'l1' | 'l2',
+    options: CacheEntryOptions,
+  ): EntryValidation | Promise<EntryValidation> {
+    if (!item) return { isValid: false }
+    if (item.entry.getTags().length === 0) {
+      return item.isGraced ? { isValid: false, item } : { isValid: true, item }
+    }
 
-    const isGraced = item?.isGraced === true
-    if (isGraced) return false
+    return this.#tagSystem
+      .getEntryTagState(item.entry)
+      .then(async (state): Promise<EntryValidation> => {
+        if (state === 'deleted') {
+          await this.#deleteFromLayer(item.entry.getKey(), layer, options)
+          return { isValid: false }
+        }
 
-    if (item.entry.getTags().length === 0) return true
+        if (item.isGraced) return { isValid: false, item }
 
-    // If we have tags, check for both hard deletion and soft invalidation in a single call
-    return this.#tagSystem.checkTagValidation(item.entry).then(async (result) => {
-      if (result.isHardDeleted) {
-        // Immediately delete from all layers and return false
-        await this.#deleteFromAllLayers(item.entry.getKey())
-        return false
-      }
+        if (state === 'expired') {
+          await this.expire(item.entry.getKey(), this.#tagExpireOptions)
+          return { isValid: false, item }
+        }
 
-      return !result.isTagInvalidated
-    })
+        return { isValid: true, item }
+      })
   }
 
   /**
-   * Helper method to delete a key from all cache layers
+   * Lazily delete an entry deleted by a tag from the layer it was read from.
+   * The other layers and instances will do the same when they read it.
    */
-  async #deleteFromAllLayers(key: string) {
-    this.l1?.delete(key)
-    await this.l2?.delete(key, this.defaultOptions)
-    await this.publish({ type: CacheBusMessageType.Delete, keys: [key] })
-    this.emit(cacheEvents.deleted(key, this.name))
+  async #deleteFromLayer(key: string, layer: 'l1' | 'l2', options: CacheEntryOptions) {
+    if (layer === 'l1') this.l1?.delete(key, options)
+    else await this.l2?.delete(key, options)
   }
 
   /**
@@ -259,19 +269,9 @@ export class CacheStack extends BaseDriver {
   }
 
   /**
-   * Create hard deletion marks for a list of tags
+   * Create deletion keys for a list of tags
    */
-  async createTagDeletionTimestamps(tags: string[], options?: CacheEntryOptions) {
-    const result = await this.#tagSystem.createTagDeletionTimestamps(tags, options)
-
-    // Also notify other instances via bus that these tags have been marked for deletion
-    if (this.bus) {
-      await this.publish({
-        type: CacheBusMessageType.TagsDeletionMarked,
-        keys: tags.map((tag) => this.#tagSystem.getTagCacheKey(tag)),
-      })
-    }
-
-    return result
+  async createTagDeletions(tags: string[], options?: CacheEntryOptions) {
+    return this.#tagSystem.createTagDeletions(tags, options)
   }
 }

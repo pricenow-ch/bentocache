@@ -141,15 +141,15 @@ export class TwoTierHandler {
 
     this.logger.trace({ key, cache: this.stack.name, opId: options.id }, 'acquired lock')
 
-    let remoteItem
+    let remoteItem: GetCacheValueReturn | undefined
     if (!options.forceFresh) {
       /**
        * Check local cache again, as another process could have written a value
        * while we were waiting for the lock.
        */
-      localItem = this.stack.l1?.get(key, options)
-      const isLocalItemValid = await this.stack.isEntryValid(localItem)
-      if (isLocalItemValid) {
+      const local = await this.stack.validateEntry(this.stack.l1?.get(key, options), 'l1', options)
+      localItem = local.item
+      if (local.isValid) {
         this.#locks.release(key, releaser)
         return this.#returnL1Value(key, localItem!, message)
       }
@@ -157,9 +157,13 @@ export class TwoTierHandler {
       /**
        * Check remote cache in case something was written there
        */
-      remoteItem = await this.stack.l2?.get(key, options)
-      const isRemoteItemValid = await this.stack.isEntryValid(remoteItem)
-      if (isRemoteItemValid) {
+      const remote = await this.stack.validateEntry(
+        await this.stack.l2?.get(key, options),
+        'l2',
+        options,
+      )
+      remoteItem = remote.item
+      if (remote.isValid) {
         this.#locks.release(key, releaser)
         return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
       }
@@ -221,8 +225,11 @@ export class TwoTierHandler {
        * First we check the local cache. If we have a valid item, just
        * returns it without acquiring a lock.
        */
-      const localItem = this.stack.l1?.get(key, options)
-      const isLocalItemValid = await this.stack.isEntryValid(localItem)
+      const { isValid: isLocalItemValid, item: localItem } = await this.stack.validateEntry(
+        this.stack.l1?.get(key, options),
+        'l1',
+        options,
+      )
 
       // A bit nasty, but to keep maximum performance, we avoid async/await here.
       // Let's check for a better way to handle this later.

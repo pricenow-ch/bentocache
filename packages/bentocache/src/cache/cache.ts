@@ -68,8 +68,11 @@ export class Cache implements CacheProvider {
     }
 
     return cacheOperation.tracePromise(async () => {
-      const localItem = this.#stack.l1?.get(key, options)
-      const isLocalItemValid = await this.#stack.isEntryValid(localItem)
+      const { isValid: isLocalItemValid, item: localItem } = await this.#stack.validateEntry(
+        this.#stack.l1?.get(key, options),
+        'l1',
+        options,
+      )
       if (isLocalItemValid) {
         this.#stack.emit(cacheEvents.hit(key, localItem!.entry.getValue(), this.name))
         this.#options.logger.logL1Hit({ cacheName: this.name, key, options })
@@ -79,8 +82,11 @@ export class Cache implements CacheProvider {
         return localItem!.entry.getValue()
       }
 
-      const remoteItem = await this.#stack.l2?.get(key, options)
-      const isRemoteItemValid = await this.#stack.isEntryValid(remoteItem)
+      const { isValid: isRemoteItemValid, item: remoteItem } = await this.#stack.validateEntry(
+        await this.#stack.l2?.get(key, options),
+        'l2',
+        options,
+      )
 
       if (isRemoteItemValid) {
         this.#stack.l1?.set(key, remoteItem!.entry.serialize(), options)
@@ -181,12 +187,12 @@ export class Cache implements CacheProvider {
     })
 
     const localEntry = this.#stack.l1?.get(key, entryOptions)
-    const isLocalEntryValid = await this.#stack.isEntryValid(localEntry)
-    if (isLocalEntryValid) return true
+    const local = await this.#stack.validateEntry(localEntry, 'l1', entryOptions)
+    if (local.isValid) return true
 
     const inRemote = await this.#stack.l2?.get(key, entryOptions)
-    const isRemoteEntryValid = await this.#stack.isEntryValid(inRemote)
-    if (isRemoteEntryValid) return true
+    const remote = await this.#stack.validateEntry(inRemote, 'l2', entryOptions)
+    if (remote.isValid) return true
 
     return false
   }
@@ -235,7 +241,8 @@ export class Cache implements CacheProvider {
   }
 
   /**
-   * Invalidate all keys with the given tags
+   * Expire all keys with the given tags. Entries are logically expired
+   * and retained for the grace period if enabled.
    */
   async expireByTag(rawOptions: ExpireByTagOptions): Promise<boolean> {
     const tags = rawOptions.tags
@@ -243,11 +250,16 @@ export class Cache implements CacheProvider {
 
     this.#options.logger.logMethod({ method: 'expireByTag', cacheName: this.name, tags, options })
 
-    return await this.#stack.createTagInvalidations(tags, options)
+    const message: CacheOperationMessage = { operation: 'expireByTag', tags, store: this.name }
+    return cacheOperation.tracePromise(
+      () => this.#stack.createTagInvalidations(tags, options),
+      message,
+    )
   }
 
   /**
-   * Delete all keys with specific tags (lazy deletion)
+   * Delete all keys with the given tags. Deletion is lazy : entries are
+   * removed the next time they are read, and never served as graced values.
    */
   async deleteByTag(rawOptions: DeleteByTagOptions): Promise<boolean> {
     const tags = rawOptions.tags
@@ -255,12 +267,8 @@ export class Cache implements CacheProvider {
 
     this.#options.logger.logMethod({ method: 'deleteByTag', cacheName: this.name, tags, options })
 
-    const result = await this.#stack.createTagDeletionTimestamps(tags, options)
-    if (result) {
-      // Emit a 'deleted' event, reflecting the intent even if deletion is lazy
-      this.#stack.emit(cacheEvents.deleted('tags:' + tags.join(','), this.name))
-    }
-    return result
+    const message: CacheOperationMessage = { operation: 'deleteByTag', tags, store: this.name }
+    return cacheOperation.tracePromise(() => this.#stack.createTagDeletions(tags, options), message)
   }
 
   /**

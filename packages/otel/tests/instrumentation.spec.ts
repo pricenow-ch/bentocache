@@ -26,6 +26,25 @@ test.group('BentoCacheInstrumentation', () => {
     assert.equal(getSpan?.attributes['cache.key'], 'bentocache:foo')
   })
 
+  test('creates spans for tag operations with their tags', async ({ assert, cleanup }) => {
+    const { exporter, bentocacheModule } = await setupInstrumentation(
+      cleanup,
+      { includeKeys: true, requireParentSpan: false },
+      'modulePatch',
+    )
+    const store = createMemoryStore(bentocacheModule)
+
+    await store.expireByTag({ tags: ['x'] })
+    await store.deleteByTag({ tags: ['y'] })
+
+    const spans = exporter.getFinishedSpans()
+    const expireSpan = spans.find((span) => span.name === 'cache.expireByTag')
+    const deleteSpan = spans.find((span) => span.name === 'cache.deleteByTag')
+
+    assert.deepEqual(expireSpan?.attributes['cache.tags'], ['x'])
+    assert.deepEqual(deleteSpan?.attributes['cache.tags'], ['y'])
+  })
+
   test('does not create spans without parent span when requireParentSpan is true', async ({
     assert,
     cleanup,
