@@ -242,6 +242,22 @@ Delete multiple keys from the cache.
 await bento.deleteMany({ keys: ['products', 'users'] })
 ```
 
+## deleteByTag
+
+Delete all the entries associated with one of the given [tags](./tags.md). Like `delete`, deleted entries are no longer available, even with grace periods.
+
+```ts
+await bento.deleteByTag({ tags: ['products', 'users'] })
+```
+
+## expireByTag
+
+Expire all the entries associated with one of the given [tags](./tags.md). Like `expire`, expired entries are kept for the [grace period](./grace_periods.md).
+
+```ts
+await bento.expireByTag({ tags: ['products', 'users'] })
+```
+
 ## clear
 
 Clear the cache. This will delete all the keys in the cache if called from the "root" instance. If called from a namespace, it will only delete the keys in that namespace.

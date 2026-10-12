@@ -125,6 +125,28 @@ test.group('Tracing Channels', () => {
     assert.deepEqual(collector.messages.start[0].keys, ['bentocache:foo', 'bentocache:baz'])
   })
 
+  test('traces expireByTag operation', async ({ assert, cleanup }) => {
+    const collector = createCollector()
+    cleanup(() => collector.cleanup())
+
+    const { cache } = new CacheFactory().withL1L2Config().create()
+    await cache.expireByTag({ tags: ['x', 'y'] })
+
+    assert.equal(collector.messages.start[0].operation, 'expireByTag')
+    assert.deepEqual(collector.messages.start[0].tags, ['x', 'y'])
+  })
+
+  test('traces deleteByTag operation', async ({ assert, cleanup }) => {
+    const collector = createCollector()
+    cleanup(() => collector.cleanup())
+
+    const { cache } = new CacheFactory().withL1L2Config().create()
+    await cache.deleteByTag({ tags: ['x', 'y'] })
+
+    assert.equal(collector.messages.start[0].operation, 'deleteByTag')
+    assert.deepEqual(collector.messages.start[0].tags, ['x', 'y'])
+  })
+
   test('traces clear operation', async ({ assert, cleanup }) => {
     const collector = createCollector()
     cleanup(() => collector.cleanup())

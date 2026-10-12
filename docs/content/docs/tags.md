@@ -18,11 +18,23 @@ await bento.getOrSet({
 await bento.set({ key: 'foo', tags: ['tag-1'] });
 ```
 
-To invalidate all entries linked to a tag:
+To delete all entries linked to a tag:
 
 ```ts
 await bento.deleteByTag({ tags: ['tag-1'] });
 ```
+
+Or to expire them, keeping them available for the [grace period](./grace_periods.md), the same way `expire` does for a single key:
+
+```ts
+await bento.expireByTag({ tags: ['tag-1'] });
+```
+
+If a tag is both deleted and expired, deletion always wins, whatever the order of the calls.
+
+:::note
+In 1.x, `deleteByTag` only expired the entries. It is now a hard deletion: use `expireByTag` to keep the previous behavior.
+:::
 
 Now, imagine that the tags depend on the cached value itself. In that case, you can use [adaptive caching](./adaptive_caching.md) to update tags dynamically based on the computed value.
 
@@ -98,18 +110,22 @@ Note that we also store the creation date of the entry as `createdAt`.
 Now, we invalidate the `tag-1` tag:
 
 ```ts
-await bento.deleteByTag({ tags: ['tag-1'] });
+await bento.expireByTag({ tags: ['tag-1'] });
 ```
 
-Instead of scanning and deleting every entry associated with `tag-1`, Bentocache simply stores the invalidation timestamp under a special cache key:
+Instead of scanning and expiring every entry associated with `tag-1`, Bentocache simply stores the invalidation timestamp under a special cache key:
 
 ```ts
-__bentocache:tags:tag-1 = { invalidatedAt: 1701234 }
+___bc:t:tag-1 = 1701234
 ```
 
-So, we store the invalidation timestamp of the tag under the key `__bentocache:tags:tag-1`. This means that any cache entry associated with tag-1 created before `1700001234` is now considered stale.
+This means that any cache entry associated with `tag-1` created before `1701234` is now considered stale.
 
-Now, when fetching an entry, Bentocache checks if it was created before the tag was invalidated. If it was, Bentocache considers the entry stale and ignores it.
+Now, when fetching an entry, Bentocache checks if it was created before the tag was invalidated. If it was, Bentocache considers the entry stale and expires it.
+
+`deleteByTag` works the same way, with a separate `___bc:td:<tag>` key. Entries created before this timestamp are never returned again, not even as graced values. They are freed from the memory cache when read, and stay in the distributed cache until their TTL ends.
+
+Unlike the `___bc:t:<tag>` keys, which expire after 10 days, the `___bc:td:<tag>` keys never expire, so a deleted entry stored with a longer TTL or with `setForever` cannot come back. This adds one small key per deleted tag: avoid `deleteByTag` on tags with an unbounded number of values, or prefer `expireByTag` for them.
 
 In fact, the implementation is a bit more complex than that, but that's the general idea.
 

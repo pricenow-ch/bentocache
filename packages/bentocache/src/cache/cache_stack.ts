@@ -11,10 +11,10 @@ import { cacheEvents } from '../events/cache_events.js'
 import { cacheOperation } from '../tracing_channels.js'
 import type { GetSetHandler } from './get_set/get_set_handler.js'
 import type { BentoCacheOptions } from '../bento_cache_options.js'
-import type { GetCacheValueReturn } from '../types/internals/index.js'
 import type { CacheOperationMessage } from '../types/tracing_channels.js'
 import type { CacheEntryOptions } from './cache_entry/cache_entry_options.js'
 import { createCacheEntryOptions } from './cache_entry/cache_entry_options.js'
+import type { EntryValidation, GetCacheValueReturn } from '../types/internals/index.js'
 import {
   type BusDriver,
   type BusOptions,
@@ -34,6 +34,7 @@ export class CacheStack extends BaseDriver {
   #busOptions?: BusOptions
   #tagSystem: TagSystem
   #namespaceCache: Map<string, CacheStack> = new Map()
+  #tagExpireOptions = createCacheEntryOptions({})
 
   constructor(
     public name: string,
@@ -215,28 +216,68 @@ export class CacheStack extends BaseDriver {
   }
 
   /**
-   * Check if an item is valid.
-   * Valid means :
-   * - Logically not expired ( not graced )
-   * - Not invalidated by a tag
+   * Validate an item read from a cache layer.
+   *
+   * The item is valid if it is logically not expired ( not graced ) and
+   * not expired by a tag. If it was deleted by a tag, it is dropped from the
+   * result so that it is never served, even as a graced value.
    */
-  isEntryValid(item: GetCacheValueReturn | undefined): Promise<boolean> | boolean {
-    if (!item) return false
+  validateEntry(
+    item: GetCacheValueReturn | undefined,
+    layer: 'l1' | 'l2',
+    options: CacheEntryOptions,
+  ): EntryValidation | Promise<EntryValidation> {
+    if (!item) return { isValid: false }
+    if (item.entry.getTags().length === 0) {
+      return item.isGraced ? { isValid: false, item } : { isValid: true, item }
+    }
 
-    const isGraced = item?.isGraced === true
-    if (isGraced) return false
+    return this.#tagSystem
+      .getEntryTagState(item.entry)
+      .then(async (state): Promise<EntryValidation> => {
+        if (state === 'deleted') {
+          if (layer === 'l1') this.#deleteFromL1IfUnchanged(item, options)
+          return { isValid: false }
+        }
 
-    if (item.entry.getTags().length === 0) return true
+        if (item.isGraced) return { isValid: false, item }
 
-    return this.#tagSystem.isTagInvalidated(item.entry).then((isTagInvalidated) => {
-      return !isTagInvalidated
-    })
+        if (state === 'expired') {
+          await this.expire(item.entry.getKey(), this.#tagExpireOptions)
+          return { isValid: false, item }
+        }
+
+        return { isValid: true, item }
+      })
+  }
+
+  /**
+   * Free an entry deleted by a tag from the local cache, unless it was replaced
+   * while its tags were checked. The read and the delete are synchronous, so
+   * nothing can be written in between.
+   *
+   * The remote cache has no such compare-and-delete, so entries deleted by a tag
+   * stay there until their TTL ends. They are never served.
+   */
+  #deleteFromL1IfUnchanged(item: GetCacheValueReturn, options: CacheEntryOptions) {
+    const key = item.entry.getKey()
+    const current = this.l1?.get(key, options)
+    if (current?.entry.getCreatedAt() !== item.entry.getCreatedAt()) return
+
+    this.l1?.delete(key, options)
   }
 
   /**
    * Create invalidation keys for a list of tags
    */
-  async createTagInvalidations(tags: string[]) {
-    return this.#tagSystem.createTagInvalidations(tags)
+  async createTagInvalidations(tags: string[], options?: CacheEntryOptions) {
+    return this.#tagSystem.createTagInvalidations(tags, options)
+  }
+
+  /**
+   * Create deletion keys for a list of tags
+   */
+  async createTagDeletions(tags: string[], options?: CacheEntryOptions) {
+    return this.#tagSystem.createTagDeletions(tags, options)
   }
 }

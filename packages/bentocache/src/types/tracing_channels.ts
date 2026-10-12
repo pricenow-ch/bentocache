@@ -7,7 +7,17 @@ export interface CacheOperationMessage {
   /**
    * Operation type
    */
-  operation: 'get' | 'set' | 'getOrSet' | 'factory' | 'delete' | 'deleteMany' | 'clear' | 'expire'
+  operation:
+    | 'get'
+    | 'set'
+    | 'getOrSet'
+    | 'factory'
+    | 'delete'
+    | 'deleteMany'
+    | 'clear'
+    | 'expire'
+    | 'expireByTag'
+    | 'deleteByTag'
 
   /**
    * Cache key with full prefix (e.g., 'users:123' for namespaced keys)
@@ -18,6 +28,11 @@ export interface CacheOperationMessage {
    * Multiple keys for deleteMany (with full prefix)
    */
   keys?: string[]
+
+  /**
+   * Tags for expireByTag and deleteByTag
+   */
+  tags?: string[]
 
   /**
    * Store name

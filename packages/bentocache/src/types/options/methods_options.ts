@@ -60,6 +60,11 @@ export type DeleteManyOptions = { keys: string[] } & Pick<RawCommonOptions, 'sup
 export type DeleteByTagOptions = { tags: string[] } & Pick<RawCommonOptions, 'suppressL2Errors'>
 
 /**
+ * Options accepted by the `expireByTag` method
+ */
+export type ExpireByTagOptions = DeleteByTagOptions
+
+/**
  * Options accepted by the `expire` method
  */
 export type ExpireOptions = { key: string } & Pick<RawCommonOptions, 'suppressL2Errors'>

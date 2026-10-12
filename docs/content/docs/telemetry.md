@@ -20,6 +20,8 @@ It listens to Bentocache tracing channels and emits spans like:
 - `cache.deleteMany`
 - `cache.clear`
 - `cache.expire`
+- `cache.expireByTag`
+- `cache.deleteByTag`
 - `cache.factory`
 
 ## Tracing Channels
@@ -61,9 +63,10 @@ tracingChannels.cacheOperation.subscribe({
 
 | Property    | Type                                                                | Description                                           |
 | ----------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
-| `operation` | `'get' \| 'set' \| 'delete' \| 'deleteMany' \| 'clear' \| 'expire'` | The operation type                                    |
+| `operation` | `'get' \| 'set' \| 'delete' \| 'deleteMany' \| 'clear' \| 'expire' \| 'expireByTag' \| 'deleteByTag'` | The operation type |
 | `key`       | `string`                                                            | Cache key with full prefix (e.g., `'users:123'`)      |
 | `keys`      | `string[]`                                                          | Multiple keys for `deleteMany` operation              |
+| `tags`      | `string[]`                                                          | Tags for `expireByTag` and `deleteByTag` operations   |
 | `store`     | `string`                                                            | Store name                                            |
 | `hit`       | `boolean`                                                           | Whether the key was found (only for `get`)            |
 | `tier`      | `'l1' \| 'l2'`                                                      | Which tier served the value (only for `get` hits)     |

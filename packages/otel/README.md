@@ -23,7 +23,7 @@ const instrumentation = new BentoCacheInstrumentation({
 ### Options
 
 - `requireParentSpan` (default: `true`) Only create spans when a parent span exists
-- `includeKeys` (default: `false`) Include cache keys in span attributes
+- `includeKeys` (default: `false`) Include cache keys and tags in span attributes
 - `keySanitizer` Sanitize keys before adding them as attributes
 - `spanName` Custom span name factory
 - `spanNamePrefix` (default: `cache`) Prefix for default span names
