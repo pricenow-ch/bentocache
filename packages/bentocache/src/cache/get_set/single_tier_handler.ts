@@ -155,15 +155,24 @@ export class SingleTierHandler {
      * already set the value
      */
     if (!options.forceFresh) {
-      const remote = await this.stack.validateEntry(
-        await this.stack.l2?.get(key, options),
-        'l2',
-        options,
-      )
-      remoteItem = remote.item
-      if (remote.isValid) {
+      try {
+        const remote = await this.stack.validateEntry(
+          await this.stack.l2?.get(key, options),
+          'l2',
+          options,
+        )
+        remoteItem = remote.item
+        if (remote.isValid) {
+          this.#locks.release(key, releaser)
+          return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
+        }
+      } catch (err) {
+        /**
+         * Release the lock if reading or validating the cache failed,
+         * otherwise every later call for this key would wait forever.
+         */
         this.#locks.release(key, releaser)
-        return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
+        throw err
       }
     }
 

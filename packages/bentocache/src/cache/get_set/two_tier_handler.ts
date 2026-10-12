@@ -143,29 +143,42 @@ export class TwoTierHandler {
 
     let remoteItem: GetCacheValueReturn | undefined
     if (!options.forceFresh) {
-      /**
-       * Check local cache again, as another process could have written a value
-       * while we were waiting for the lock.
-       */
-      const local = await this.stack.validateEntry(this.stack.l1?.get(key, options), 'l1', options)
-      localItem = local.item
-      if (local.isValid) {
-        this.#locks.release(key, releaser)
-        return this.#returnL1Value(key, localItem!, message)
-      }
+      try {
+        /**
+         * Check local cache again, as another process could have written a value
+         * while we were waiting for the lock.
+         */
+        const local = await this.stack.validateEntry(
+          this.stack.l1?.get(key, options),
+          'l1',
+          options,
+        )
+        localItem = local.item
+        if (local.isValid) {
+          this.#locks.release(key, releaser)
+          return this.#returnL1Value(key, localItem!, message)
+        }
 
-      /**
-       * Check remote cache in case something was written there
-       */
-      const remote = await this.stack.validateEntry(
-        await this.stack.l2?.get(key, options),
-        'l2',
-        options,
-      )
-      remoteItem = remote.item
-      if (remote.isValid) {
+        /**
+         * Check remote cache in case something was written there
+         */
+        const remote = await this.stack.validateEntry(
+          await this.stack.l2?.get(key, options),
+          'l2',
+          options,
+        )
+        remoteItem = remote.item
+        if (remote.isValid) {
+          this.#locks.release(key, releaser)
+          return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
+        }
+      } catch (err) {
+        /**
+         * Release the lock if reading or validating the cache failed,
+         * otherwise every later call for this key would wait forever.
+         */
         this.#locks.release(key, releaser)
-        return this.#returnRemoteCacheValue(key, remoteItem!, options, message)
+        throw err
       }
     }
 

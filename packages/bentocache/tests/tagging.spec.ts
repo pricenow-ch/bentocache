@@ -1,8 +1,87 @@
 import { test } from '@japa/runner'
 import { sleep } from '@julr/utils/misc'
 
+import type { L2CacheDriver } from '../src/types/main.js'
+import { BaseDriver } from '../src/drivers/base_driver.js'
 import { CacheFactory } from '../factories/cache_factory.js'
 import { createCacheEntryOptions } from '../src/cache/cache_entry/cache_entry_options.js'
+
+/**
+ * In-memory L2 driver honoring TTLs against a clock that tests can move forward
+ */
+class ClockedL2Driver extends BaseDriver implements L2CacheDriver {
+  type = 'l2' as const
+  now = Date.now()
+  #items = new Map<string, { value: string; expiresAt?: number }>()
+
+  constructor() {
+    super({})
+  }
+
+  advance(ms: number) {
+    this.now += ms
+  }
+
+  namespace() {
+    return this as any
+  }
+
+  async get(key: string) {
+    const item = this.#items.get(key)
+    if (!item) return
+    if (item.expiresAt !== undefined && item.expiresAt <= this.now) {
+      this.#items.delete(key)
+      return
+    }
+
+    return item.value
+  }
+
+  async pull(key: string) {
+    const value = await this.get(key)
+    this.#items.delete(key)
+    return value
+  }
+
+  async set(key: string, value: string, ttl?: number) {
+    this.#items.set(key, { value, expiresAt: ttl ? this.now + ttl : undefined })
+    return true
+  }
+
+  async clear() {
+    this.#items.clear()
+  }
+
+  async delete(key: string) {
+    return this.#items.delete(key)
+  }
+
+  async deleteMany(keys: string[]) {
+    for (const key of keys) this.#items.delete(key)
+    return true
+  }
+
+  async disconnect() {}
+}
+
+/**
+ * Returns a promise to resolve manually, and a promise resolved once it is awaited
+ */
+function createGate() {
+  let open!: () => void
+  let reached!: () => void
+  const opened = new Promise<void>((resolve) => (open = resolve))
+  const wasReached = new Promise<void>((resolve) => (reached = resolve))
+
+  return {
+    open,
+    wasReached,
+    wait: () => {
+      reached()
+      return opened
+    },
+  }
+}
 
 test.group('Tagging | Internals', () => {
   test('expireByTag should store invalidated tags with timestamps', async ({ assert }) => {
@@ -487,20 +566,20 @@ test.group('Tagging | deleteByTag', () => {
     assert.deepEqual(r1, 1) // should remain unaffected
   })
 
-  test('deleteByTag should delete from all cache layers', async ({ assert }) => {
+  test('reading a deleted entry frees the local cache only', async ({ assert }) => {
     const { cache, local, remote, stack } = new CacheFactory().withL1L2Config().create()
 
     await cache.set({ key: 'foo', value: 1, tags: ['x'] })
     await cache.deleteByTag({ tags: ['x'] })
 
-    // Trigger deletion by accessing the key
-    await cache.get({ key: 'foo' })
-
-    // Check that it's deleted from both layers
-    const r1 = local.get('foo', stack.defaultOptions)
-    const r2 = await remote.get('foo', stack.defaultOptions)
+    const r1 = await cache.get({ key: 'foo' })
+    const inL1 = local.get('foo', stack.defaultOptions)
+    const inL2 = await remote.get('foo', stack.defaultOptions)
+    const r2 = await cache.get({ key: 'foo' })
 
     assert.isUndefined(r1)
+    assert.isUndefined(inL1)
+    assert.equal(inL2?.entry.getValue(), 1)
     assert.isUndefined(r2)
   })
 
@@ -651,4 +730,105 @@ test.group('Tagging | deleteByTag', () => {
     assert.isUndefined(await cache.get({ key: 'old' }))
     assert.isNumber(await cache.get({ key: '___bc:t:legacy' }))
   })
+
+  test('a deleted entry stays deleted after the tag ttl', async ({ assert }) => {
+    const driver = new ClockedL2Driver()
+    const { cache } = new CacheFactory().merge({ l2Driver: driver }).create()
+
+    await cache.setForever({ key: 'foo', value: 1, tags: ['x'] })
+    await cache.deleteByTag({ tags: ['x'] })
+    driver.advance(11 * 24 * 60 * 60 * 1000)
+
+    const r1 = await cache.get({ key: 'foo' })
+
+    assert.isUndefined(r1)
+  })
+
+  test('keeps an L2 replacement written while a deleted entry was checked', async ({ assert }) => {
+    const { cache, local, remote, stack } = new CacheFactory().withL1L2Config().create()
+
+    await cache.set({ key: 'foo', value: 'old', tags: ['x'] })
+    await cache.deleteByTag({ tags: ['x'] })
+    local.delete('foo')
+    local.delete('___bc:td:x')
+
+    const gate = createGate()
+    const get = remote.get.bind(remote)
+    remote.get = async (key, options) => {
+      if (key === '___bc:td:x') await gate.wait()
+      return get(key, options)
+    }
+
+    const r1 = cache.get({ key: 'foo' })
+    await gate.wasReached
+    await sleep(5)
+    await cache.set({ key: 'foo', value: 'new', tags: ['y'] })
+    gate.open()
+
+    assert.isUndefined(await r1)
+    const inL2 = await get('foo', stack.defaultOptions)
+    assert.equal(inL2?.entry.getValue(), 'new')
+    assert.equal(await cache.get({ key: 'foo' }), 'new')
+  })
+
+  test('keeps an L1 replacement written while a deleted entry was checked', async ({ assert }) => {
+    const { cache, local, remote, stack } = new CacheFactory().withL1L2Config().create()
+
+    await cache.set({ key: 'foo', value: 'old', tags: ['x'] })
+    await cache.deleteByTag({ tags: ['x'] })
+    local.delete('___bc:td:x')
+
+    const gate = createGate()
+    const get = remote.get.bind(remote)
+    remote.get = async (key, options) => {
+      if (key === '___bc:td:x') await gate.wait()
+      return get(key, options)
+    }
+
+    // `has` does not refill L1 from L2, unlike `get`
+    const r1 = cache.has({ key: 'foo' })
+    await gate.wasReached
+    await sleep(5)
+    await cache.set({ key: 'foo', value: 'new', tags: ['y'] })
+    gate.open()
+
+    assert.isTrue(await r1)
+    assert.equal(local.get('foo', stack.defaultOptions)?.entry.getValue(), 'new')
+  })
+})
+
+test.group('Tagging | locks', () => {
+  test('two tier getOrSet releases the lock when the remote read fails', async ({ assert }) => {
+    const { cache, remote } = new CacheFactory().withL1L2Config().create()
+
+    const get = remote.get.bind(remote)
+    let failures = 1
+    remote.get = async (key, options) => {
+      if (key === 'foo' && failures-- > 0) throw new Error('l2 down')
+      return get(key, options)
+    }
+
+    const r1 = cache.getOrSet({ key: 'foo', suppressL2Errors: false, factory: () => 1 })
+    await assert.rejects(() => r1)
+
+    const r2 = await cache.getOrSet({ key: 'foo', factory: () => 2, timeout: 0 })
+    assert.equal(r2, 2)
+  }).timeout(2000)
+
+  test('single tier getOrSet releases the lock when the remote read fails', async ({ assert }) => {
+    const { cache, remote } = new CacheFactory().withRedisL2().create()
+
+    const get = remote.get.bind(remote)
+    let calls = 0
+    remote.get = async (key, options) => {
+      if (key === 'foo' && ++calls === 2) throw new Error('l2 down')
+      return get(key, options)
+    }
+
+    const r1 = cache.getOrSet({ key: 'foo', suppressL2Errors: false, factory: () => 1 })
+    await assert.rejects(() => r1)
+
+    const r2 = await cache.getOrSet({ key: 'foo', factory: () => 2 })
+    assert.equal(r2, 2)
+  }).timeout(2000)
 })

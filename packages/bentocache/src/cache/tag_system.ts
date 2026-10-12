@@ -26,6 +26,15 @@ export class TagSystem {
     grace: '10d',
   })
 
+  /**
+   * Deletion keys never expire : entries can outlive any fixed TTL ( e.g. `setForever` ),
+   * and a missing deletion key would make them valid again.
+   */
+  #deleteTagOptions = createCacheEntryOptions({
+    ttl: null,
+    grace: false,
+  })
+
   constructor(private stack: CacheStack) {}
 
   setGetSetHandler(handler: GetSetHandler) {
@@ -105,9 +114,13 @@ export class TagSystem {
   /**
    * Write the current timestamp in the given tag keys
    */
-  async #writeTagTimestamps(keys: string[], options?: CacheEntryOptions) {
+  async #writeTagTimestamps(
+    keys: string[],
+    tagOptions: CacheEntryOptions,
+    options?: CacheEntryOptions,
+  ) {
     const now = Date.now()
-    const writeOptions = this.#getSetTagOptions.cloneWith({
+    const writeOptions = tagOptions.cloneWith({
       suppressL2Errors: options?.suppressL2Errors,
     })
 
@@ -128,6 +141,7 @@ export class TagSystem {
   async createTagInvalidations(tags: string[], options?: CacheEntryOptions) {
     return this.#writeTagTimestamps(
       tags.map((tag) => this.getTagCacheKey(tag)),
+      this.#getSetTagOptions,
       options,
     )
   }
@@ -135,12 +149,13 @@ export class TagSystem {
   /**
    * Create deletion keys for a list of tags
    *
-   * Same as `createTagInvalidations`, but with a `___bc:td:<tag>` key. Entries
-   * created before this timestamp are deleted lazily, the next time they are read.
+   * Same as `createTagInvalidations`, but with a `___bc:td:<tag>` key that never
+   * expires. Entries created before this timestamp are never served again.
    */
   async createTagDeletions(tags: string[], options?: CacheEntryOptions) {
     return this.#writeTagTimestamps(
       tags.map((tag) => this.getTagDeletionCacheKey(tag)),
+      this.#deleteTagOptions,
       options,
     )
   }

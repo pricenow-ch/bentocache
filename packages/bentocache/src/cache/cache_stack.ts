@@ -219,9 +219,8 @@ export class CacheStack extends BaseDriver {
    * Validate an item read from a cache layer.
    *
    * The item is valid if it is logically not expired ( not graced ) and
-   * not expired by a tag. If it was deleted by a tag, it is removed from the
-   * layer it was read from and dropped from the result, so that it is never
-   * served, even as a graced value.
+   * not expired by a tag. If it was deleted by a tag, it is dropped from the
+   * result so that it is never served, even as a graced value.
    */
   validateEntry(
     item: GetCacheValueReturn | undefined,
@@ -237,7 +236,7 @@ export class CacheStack extends BaseDriver {
       .getEntryTagState(item.entry)
       .then(async (state): Promise<EntryValidation> => {
         if (state === 'deleted') {
-          await this.#deleteFromLayer(item.entry.getKey(), layer, options)
+          if (layer === 'l1') this.#deleteFromL1IfUnchanged(item, options)
           return { isValid: false }
         }
 
@@ -253,12 +252,19 @@ export class CacheStack extends BaseDriver {
   }
 
   /**
-   * Lazily delete an entry deleted by a tag from the layer it was read from.
-   * The other layers and instances will do the same when they read it.
+   * Free an entry deleted by a tag from the local cache, unless it was replaced
+   * while its tags were checked. The read and the delete are synchronous, so
+   * nothing can be written in between.
+   *
+   * The remote cache has no such compare-and-delete, so entries deleted by a tag
+   * stay there until their TTL ends. They are never served.
    */
-  async #deleteFromLayer(key: string, layer: 'l1' | 'l2', options: CacheEntryOptions) {
-    if (layer === 'l1') this.l1?.delete(key, options)
-    else await this.l2?.delete(key, options)
+  #deleteFromL1IfUnchanged(item: GetCacheValueReturn, options: CacheEntryOptions) {
+    const key = item.entry.getKey()
+    const current = this.l1?.get(key, options)
+    if (current?.entry.getCreatedAt() !== item.entry.getCreatedAt()) return
+
+    this.l1?.delete(key, options)
   }
 
   /**
