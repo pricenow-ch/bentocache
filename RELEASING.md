@@ -83,6 +83,11 @@ do not publish that version again. A failed validation before publishing can be 
 
 ## Merging upstream improvements
 
+The [Upstream sync workflow](.github/UPSTREAM_SYNC.md) automatically opens and
+validates upstream PRs, merges successful syncs, and requests review for conflicts
+or changes to fork identity. Before releasing imported user-facing changes, add
+a core changeset. Use the manual steps below when a sync needs review.
+
 ```sh
 git remote add upstream https://github.com/Julien-R44/bentocache.git # once
 git fetch upstream
