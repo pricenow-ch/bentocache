@@ -224,6 +224,10 @@ You must provide a Kysely instance to use the Kysely driver. Feel free to check 
 
 You will need to install `mysql2` to use this driver.
 
+Kysely stores `expires_at` as a timestamp on MySQL and PostgreSQL, and as Unix milliseconds in a `BIGINT` column on SQLite. Expiration writes and pruning use the same format for each database.
+
+`autoCreateTable` creates missing tables without altering existing schemas. If an older version created a MySQL or PostgreSQL cache table with a `BIGINT` expiration column, use a new `tableName` or recreate that cache table to use the timestamp schema.
+
 ```ts
 import { Kysely } from 'kysely'
 import { BentoCache, bentostore } from 'bentocache'
