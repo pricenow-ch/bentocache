@@ -15,3 +15,4 @@ jobs:
           close-pr-message: 'This pull request has been automatically closed because it has been inactive for more than 4 weeks. Please reopen if you still intend to submit this pull request'
           days-before-stale: 21
           days-before-close: 5
+          exempt-pr-labels: upstream-sync
