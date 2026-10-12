@@ -77,6 +77,39 @@ For subsequent changes:
 4. The workflow runs CI, builds and verifies the tarball, publishes it publicly with provenance,
    and creates a GitHub release tagged `@pricenow/bentocache@<version>`.
 
+### Beta releases from main
+
+The repository is in Changesets prerelease mode with the `beta` tag. The first
+prepared version is `2.0.0-beta.0`; subsequent beta versions use `beta.1`, `beta.2`,
+and so on. Only the core package is published; the companion packages remain private.
+
+To prepare another beta, merge the changes and their changesets, then run on a
+release branch:
+
+```sh
+pnpm changeset version
+pnpm install --lockfile-only
+```
+
+Commit the version, changelog, lockfile and `.changeset/pre.json` updates and merge
+the release PR into `main`. Dispatch the publishing workflow with that exact version:
+
+```sh
+gh workflow run publish.yml --repo pricenow-ch/bentocache --ref main \
+  -f version=2.0.0-beta.0
+```
+
+The workflow explicitly publishes prereleases with the npm tag from their first
+prerelease identifier (`beta` for these releases), overriding the manifest's
+`publishConfig.tag`. It marks the GitHub release as a prerelease and leaves the
+latest stable release unchanged. Stable versions publish with the `latest` npm tag.
+Publishing still requires the trusted publisher configuration described above.
+
+When ready for the stable release, run `pnpm changeset pre exit`,
+`pnpm changeset version` and `pnpm install --lockfile-only` on a release branch.
+Review and merge the resulting stable version and changelog before dispatching
+the publishing workflow.
+
 Never reuse a published version. If publishing succeeded but recording the
 GitHub release failed, create the missing tag/release for the workflow's commit;
 do not publish that version again. A failed validation before publishing can be retried.

@@ -19,9 +19,13 @@ jobs:
   check-version:
     if: github.repository == 'pricenow-ch/bentocache' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      npm-tag: ${{ steps.version.outputs.npm-tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
       - name: Check requested version
+        id: version
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
@@ -33,6 +37,11 @@ jobs:
           assert.equal(manifest.version, process.env.EXPECTED_VERSION)
           assert.equal(manifest.publishConfig.access, 'public')
           assert.notEqual(manifest.publishConfig.provenance, false)
+          const prerelease = manifest.version.split('+')[0].match(/^\d+\.\d+\.\d+-(.+)$/)?.[1]
+          const npmTag = prerelease?.split('.')[0] ?? 'latest'
+          assert.match(npmTag, /^[a-z][a-z0-9-]*$/i)
+          if (prerelease) assert.notEqual(npmTag, 'latest')
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `npm-tag=${npmTag}\nprerelease=${Boolean(prerelease)}\n`)
           NODE
 
   validate:
@@ -40,7 +49,7 @@ jobs:
     uses: ./.github/workflows/checks.yml
 
   publish:
-    needs: validate
+    needs: [check-version, validate]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,13 +72,20 @@ jobs:
           pnpm release:pack
           pnpm release:verify
       - name: Publish exact version using npm trusted publishing
-        run: npm publish ./dist/bentocache.tgz --access public --provenance
+        env:
+          NPM_TAG: ${{ needs.check-version.outputs.npm-tag }}
+        run: npm publish ./dist/bentocache.tgz --access public --provenance --tag "$NPM_TAG"
       - name: Record GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_PRERELEASE: ${{ needs.check-version.outputs.prerelease }}
         run: |
+          release_flags=()
+          if [ "$RELEASE_PRERELEASE" = "true" ]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
           gh release create "@pricenow/bentocache@${RELEASE_VERSION}" \
             --target "$GITHUB_SHA" \
             --title "@pricenow/bentocache@${RELEASE_VERSION}" \
-            --generate-notes
+            --generate-notes "${release_flags[@]}"
