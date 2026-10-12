@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis'
 import { test } from '@japa/runner'
+import { sleep } from '@julr/utils/misc'
 
 import { bentostore } from '../src/bento_store.js'
 import { BentoCache } from '../src/bento_cache.js'
@@ -71,6 +72,20 @@ test.group('Bento Cache', () => {
 
     await bento.use('multi').set({ key: 'foo', value: 'bar' })
 
+    const redis = new Redis(REDIS_CREDENTIALS)
+    cleanup(async () => {
+      await redis.quit()
+    })
+
+    /** Wait for SUBSCRIBE before cleanup can send QUIT during the Redis handshake. */
+    let subscriberCount = 0
+    for (let attempt = 0; attempt < 100 && subscriberCount === 0; attempt++) {
+      const result = await redis.pubsub('NUMSUB', 'bentocache.notifications:multi')
+      subscriberCount = Number(result[1])
+      if (subscriberCount === 0) await sleep(10)
+    }
+
+    assert.isAbove(subscriberCount, 0)
     assert.equal(await bento.use('multi').get({ key: 'foo' }), 'bar')
   })
 

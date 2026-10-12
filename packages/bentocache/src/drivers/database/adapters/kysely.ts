@@ -81,7 +81,7 @@ export class KyselyAdapter implements DatabaseAdapter {
       .createTable(this.#tableName)
       .addColumn('key', 'varchar(255)', (col) => col.primaryKey().notNull())
       .addColumn('value', 'text')
-      .addColumn('expires_at', 'bigint')
+      .addColumn('expires_at', this.#dialect === 'sqlite' ? 'bigint' : 'timestamp')
       .ifNotExists()
       .execute()
   }
@@ -89,7 +89,7 @@ export class KyselyAdapter implements DatabaseAdapter {
   async pruneExpiredEntries(): Promise<void> {
     await this.#connection
       .deleteFrom(this.#tableName)
-      .where('expires_at', '<', Date.now())
+      .where('expires_at', '<', this.#dialect === 'sqlite' ? Date.now() : new Date())
       .execute()
   }
 
