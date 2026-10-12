@@ -1,0 +1,10 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "@pricenow/bentocache": "1.6.1",
+    "@bentocache/otel": "0.1.2",
+    "@bentocache/plugin-prometheus": "0.2.0"
+  },
+  "changesets": ["fix-concurrent-getorset-spans", "hard-delete-by-tag", "otel-tag-operations"]
+}

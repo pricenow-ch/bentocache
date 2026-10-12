@@ -30,7 +30,7 @@
     "checks": "pnpm lint && pnpm typecheck"
   },
   "peerDependencies": {
-    "@pricenow/bentocache": "^1.0.0",
+    "@pricenow/bentocache": "^2.0.0-beta.0",
     "prom-client": "^15.0.0"
   },
   "devDependencies": {

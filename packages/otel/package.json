@@ -32,7 +32,7 @@
     "checks": "pnpm lint && pnpm typecheck"
   },
   "peerDependencies": {
-    "@pricenow/bentocache": "^1.6.0"
+    "@pricenow/bentocache": "^2.0.0-beta.0"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

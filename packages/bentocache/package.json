@@ -1,7 +1,7 @@
 {
   "name": "@pricenow/bentocache",
   "type": "module",
-  "version": "1.6.1",
+  "version": "2.0.0-beta.0",
   "description": "Pricenow fork of Bentocache, a multi-tier cache module for Node.js",
   "author": "Julien Ripouteau <julien@ripouteau.com>",
   "license": "MIT",
