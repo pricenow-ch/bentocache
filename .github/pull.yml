@@ -1,0 +1,10 @@
+version: '1'
+rules:
+  - base: main
+    upstream: Julien-R44:main
+    mergeMethod: merge
+    mergeUnstable: false
+    conflictReviewers:
+      - yss14
+label: upstream-sync
+conflictLabel: merge-conflict
