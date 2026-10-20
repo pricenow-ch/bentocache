@@ -13,13 +13,13 @@ this is already enabled for this fork.
 ## Validation and merging
 
 The sync workflow calls the existing CI workflow directly to test the PR's exact
-merge commit. It reports the actual `lint`, `typecheck`, `build`, `tests`, and
+merge commit. It reports the actual `lint`, `typecheck`, `build`, `docs`, `tests`, and
 `upstream-sync-tests` job results as checks on that commit. This lets scheduled
 syncs run unattended even when GitHub requires approval for the ordinary CI run
 on a PR created using `GITHUB_TOKEN`.
 
 CI jobs have read-only access. Separate jobs create PRs, report check results,
-and merge. Automatic merging requires all five validation jobs to pass and the
+and merge. Automatic merging requires all six validation jobs to pass and the
 PR's head, base, and merge commit to remain unchanged during CI. GitHub branch
 protection still applies. Required checks must come from GitHub Actions, and
 required approvals and the requirement for the upstream branch to be up to date

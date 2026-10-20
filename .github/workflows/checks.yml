@@ -33,18 +33,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
+          npm install --global pnpm@12.14.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
 
   typecheck:
     runs-on: ubuntu-latest
@@ -58,12 +60,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
+          npm install --global pnpm@12.14.0
 
       - name: Install dependencies
         run: |
@@ -85,18 +86,41 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
+          npm install --global pnpm@12.14.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm -C packages/bentocache build
+
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install pnpm
+        run: |
+          npm install --global pnpm@12.14.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Export documentation
+        run: pnpm -C docs export
 
   tests:
     runs-on: ubuntu-latest
@@ -140,12 +164,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
+          npm install --global pnpm@12.14.0
 
       - name: Install dependencies
         run: |
@@ -170,12 +193,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: Test upstream sync automation
         run: node --test .github/scripts/upstream_sync.spec.mjs
 
   collect-results:
-    needs: [lint, typecheck, build, tests, upstream-sync-tests]
+    needs: [lint, typecheck, build, docs, tests, upstream-sync-tests]
     if: always()
     runs-on: ubuntu-latest
     outputs:

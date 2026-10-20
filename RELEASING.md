@@ -91,7 +91,7 @@ pnpm changeset version
 pnpm install --lockfile-only
 ```
 
-Commit the version, changelog, lockfile and `.changeset/pre.json` updates and merge
+Commit the version, changelog, lockfile and `.changeset/` updates and merge
 the release PR into `main`. Dispatch the publishing workflow with that exact version:
 
 ```sh

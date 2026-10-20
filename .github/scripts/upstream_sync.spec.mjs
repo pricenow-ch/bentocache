@@ -52,38 +52,38 @@ function fixture() {
       },
       issues: {
         getLabel: async () => ({}),
-        createLabel: async (params) => write('createLabel', params),
-        addLabels: async (params) => {
+        createLabel: async params => write('createLabel', params),
+        addLabels: async params => {
           write('addLabels', params)
-          pr.labels.push(...params.labels.map((name) => ({ name })))
+          pr.labels.push(...params.labels.map(name => ({ name })))
         },
-        removeLabel: async (params) => write('removeLabel', params),
+        removeLabel: async params => write('removeLabel', params),
       },
       pulls: {
         list: async () => ({ data: state.existing ? [pr] : [] }),
-        create: async (params) => {
+        create: async params => {
           write('create', params)
           state.existing = true
           return { data: pr }
         },
         get: async () => ({ data: pr }),
-        requestReviewers: async (params) => {
+        requestReviewers: async params => {
           write('review', params)
-          pr.requested_reviewers.push(...params.reviewers.map((login) => ({ login })))
+          pr.requested_reviewers.push(...params.reviewers.map(login => ({ login })))
         },
-        merge: async (params) => {
+        merge: async params => {
           write('merge', params)
           return { data: { merged: true } }
         },
       },
       checks: {
-        create: async (params) => {
+        create: async params => {
           write('check', params)
           const id = Object.keys(state.checks).length + 1
           state.checks[id] = { ...params, id, app: { slug: 'github-actions' } }
           return { data: { id } }
         },
-        update: async (params) => {
+        update: async params => {
           write('updateCheck', params)
           Object.assign(state.checks[params.check_run_id], params)
         },
@@ -91,7 +91,7 @@ function fixture() {
       },
     },
   }
-  const core = { notice: (message) => state.notices.push(message) }
+  const core = { notice: message => state.notices.push(message) }
   return { state, github, core, runUrl, sleep: async () => {} }
 }
 
@@ -107,19 +107,20 @@ test('creates one upstream PR and tests its exact merge commit', async () => {
   setup.state.existing = false
   const plan = await prepareSync(setup)
   assert.equal(plan.merge, 'merge-sha')
-  const creation = setup.state.calls.find((call) => call.method === 'create')
+  assert.ok(plan.checks.docs)
+  const creation = setup.state.calls.find(call => call.method === 'create')
   assert.equal(creation.head, 'Julien-R44:main')
   assert.equal(creation.base, 'main')
-  assert.ok(Object.values(setup.state.checks).every((check) => check.head_sha === plan.merge))
+  assert.ok(Object.values(setup.state.checks).every(check => check.head_sha === plan.merge))
   await prepareSync(setup)
-  assert.equal(setup.state.calls.filter((call) => call.method === 'create').length, 1)
+  assert.equal(setup.state.calls.filter(call => call.method === 'create').length, 1)
 })
 
 test('reuses an existing managed PR', async () => {
   const setup = fixture()
   const plan = await prepareSync(setup)
   assert.equal(plan.number, 10)
-  assert.ok(!setup.state.calls.some((call) => call.method === 'create'))
+  assert.ok(!setup.state.calls.some(call => call.method === 'create'))
 })
 
 test('conflicts request yss14 once and never start validation', async () => {
@@ -129,11 +130,11 @@ test('conflicts request yss14 once and never start validation', async () => {
   assert.equal(await prepareSync(setup), null)
   assert.equal(await prepareSync(setup), null)
   assert.deepEqual(
-    setup.state.calls.filter((call) => call.method === 'review').map((call) => call.reviewers),
+    setup.state.calls.filter(call => call.method === 'review').map(call => call.reviewers),
     [['yss14']],
   )
-  assert.ok(setup.state.pr.labels.some((label) => label.name === 'merge-conflict'))
-  assert.ok(!setup.state.calls.some((call) => call.method === 'check'))
+  assert.ok(setup.state.pr.labels.some(label => label.name === 'merge-conflict'))
+  assert.ok(!setup.state.calls.some(call => call.method === 'check'))
 })
 
 test('a manual upstream PR is never taken over', async () => {
@@ -154,8 +155,8 @@ test('recovers a managed PR whose label update was interrupted', async () => {
   const setup = fixture()
   setup.state.pr.labels = []
   assert.ok(await prepareSync(setup))
-  assert.ok(setup.state.pr.labels.some((label) => label.name === 'upstream-sync'))
-  assert.ok(!setup.state.calls.some((call) => call.method === 'create'))
+  assert.ok(setup.state.pr.labels.some(label => label.name === 'upstream-sync'))
+  assert.ok(!setup.state.calls.some(call => call.method === 'create'))
 })
 
 test('unknown mergeability leaves the PR open without requesting conflict review', async () => {
@@ -163,7 +164,7 @@ test('unknown mergeability leaves the PR open without requesting conflict review
   setup.state.pr.mergeable = null
   setup.state.pr.mergeable_state = 'unknown'
   assert.equal(await prepareSync(setup), null)
-  assert.ok(!setup.state.calls.some((call) => ['review', 'check'].includes(call.method)))
+  assert.ok(!setup.state.calls.some(call => ['review', 'check'].includes(call.method)))
 })
 
 test('an upstream version bump requests review and blocks automatic merging', async () => {
@@ -173,9 +174,9 @@ test('an upstream version bump requests review and blocks automatic merging', as
     version: '1.7.0',
   })
   assert.equal(await prepareSync(setup), null)
-  assert.ok(setup.state.pr.labels.some((label) => label.name === 'fork-identity'))
-  assert.ok(setup.state.calls.some((call) => call.method === 'review'))
-  assert.ok(!setup.state.calls.some((call) => call.method === 'check'))
+  assert.ok(setup.state.pr.labels.some(label => label.name === 'fork-identity'))
+  assert.ok(setup.state.calls.some(call => call.method === 'review'))
+  assert.ok(!setup.state.calls.some(call => call.method === 'check'))
 })
 
 test('changes to publishing or companion visibility require manual review', async () => {
@@ -186,7 +187,7 @@ test('changes to publishing or companion visibility require manual review', asyn
     const setup = fixture()
     setup.state.contents[`merge-sha:${path}`] = content
     assert.equal(await prepareSync(setup), null)
-    assert.ok(setup.state.pr.labels.some((label) => label.name === 'fork-identity'))
+    assert.ok(setup.state.pr.labels.some(label => label.name === 'fork-identity'))
   }
 })
 
@@ -200,74 +201,76 @@ test('missing or invalid fork metadata requests review rather than merging', asy
       throw error
     }
     assert.equal(await prepareSync(setup), null)
-    assert.ok(setup.state.calls.some((call) => call.method === 'review'))
-    assert.ok(!setup.state.calls.some((call) => call.method === 'check'))
+    assert.ok(setup.state.calls.some(call => call.method === 'review'))
+    assert.ok(!setup.state.calls.some(call => call.method === 'check'))
   }
 })
 
 test('failed, cancelled, skipped or missing CI results never authorize a merge', async () => {
-  for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
-    const setup = fixture()
-    const plan = await prepareSync(setup)
-    const results = Object.fromEntries(checkNames.map((name) => [name, 'success']))
-    results.tests = result
-    assert.equal(await reportChecks({ ...setup, checks: plan.checks, results }), false)
-    assert.equal(await mergeSync({ ...setup, plan }), false)
-    assert.ok(!setup.state.calls.some((call) => call.method === 'merge'))
+  for (const name of checkNames) {
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      const setup = fixture()
+      const plan = await prepareSync(setup)
+      const results = Object.fromEntries(checkNames.map(check => [check, 'success']))
+      results[name] = result
+      assert.equal(await reportChecks({ ...setup, checks: plan.checks, results }), false)
+      assert.equal(await mergeSync({ ...setup, plan }), false)
+      assert.ok(!setup.state.calls.some(call => call.method === 'merge'))
+    }
   }
 })
 
 test('a successful validation merges with an explicit head SHA and merge commit', async () => {
   const setup = fixture()
   const plan = await prepareSync(setup)
-  const results = Object.fromEntries(checkNames.map((name) => [name, 'success']))
+  const results = Object.fromEntries(checkNames.map(name => [name, 'success']))
   assert.equal(await reportChecks({ ...setup, checks: plan.checks, results }), true)
   assert.equal(await mergeSync({ ...setup, plan }), true)
-  const merge = setup.state.calls.find((call) => call.method === 'merge')
+  const merge = setup.state.calls.find(call => call.method === 'merge')
   assert.equal(merge.sha, plan.head)
   assert.equal(merge.merge_method, 'merge')
 })
 
 test('head, base or merge commit changes during CI prevent merging', async () => {
   for (const change of [
-    (pr) => {
+    pr => {
       pr.head.sha = 'new-head'
     },
-    (pr) => {
+    pr => {
       pr.base.sha = 'new-base'
     },
-    (pr) => {
+    pr => {
       pr.merge_commit_sha = 'new-merge'
     },
   ]) {
     const setup = fixture()
     const plan = await prepareSync(setup)
-    const results = Object.fromEntries(checkNames.map((name) => [name, 'success']))
+    const results = Object.fromEntries(checkNames.map(name => [name, 'success']))
     await reportChecks({ ...setup, checks: plan.checks, results })
     change(setup.state.pr)
     assert.equal(await mergeSync({ ...setup, plan }), false)
-    assert.ok(!setup.state.calls.some((call) => call.method === 'merge'))
+    assert.ok(!setup.state.calls.some(call => call.method === 'merge'))
   }
 })
 
 test('pending checks and results from a different commit or app prevent merging', async () => {
   for (const change of [
-    (check) => {
+    check => {
       check.status = 'in_progress'
     },
-    (check) => {
+    check => {
       check.head_sha = 'another-commit'
     },
-    (check) => {
+    check => {
       check.app.slug = 'another-app'
     },
   ]) {
     const setup = fixture()
     const plan = await prepareSync(setup)
-    const results = Object.fromEntries(checkNames.map((name) => [name, 'success']))
+    const results = Object.fromEntries(checkNames.map(name => [name, 'success']))
     await reportChecks({ ...setup, checks: plan.checks, results })
     change(setup.state.checks[plan.checks.tests])
     assert.equal(await mergeSync({ ...setup, plan }), false)
-    assert.ok(!setup.state.calls.some((call) => call.method === 'merge'))
+    assert.ok(!setup.state.calls.some(call => call.method === 'merge'))
   }
 })

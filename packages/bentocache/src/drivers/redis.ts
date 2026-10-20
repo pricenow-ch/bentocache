@@ -1,7 +1,7 @@
 import type { RedisOptions as IoRedisOptions } from 'ioredis'
 import { RedisTransport } from '@boringnode/bus/transports/redis'
 import { Redis as IoRedis, Cluster as IoRedisCluster } from 'ioredis'
-import type { RedisTransportConfig } from '@boringnode/bus/types/main'
+import type { RedisTransportConfig } from '@boringnode/bus/types/redis'
 
 import { BaseDriver } from './base_driver.js'
 import { BinaryEncoder } from '../bus/encoders/binary_encoder.js'
@@ -68,7 +68,7 @@ export class RedisDriver extends BaseDriver implements L2CacheDriver {
     this.#connection = new IoRedis(config.connection)
   }
 
-  getConnection() {
+  getConnection(): IoRedis | IoRedisCluster {
     return this.#connection
   }
 

@@ -1,22 +1,22 @@
 {
   "name": "@bentocache/benchmarks",
-  "type": "module",
   "private": true,
   "description": "",
-  "author": "Julien Ripouteau <julien@ripouteau.com>",
-  "license": "ISC",
   "keywords": [],
+  "license": "ISC",
+  "author": "Julien Ripouteau <julien@ripouteau.com>",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "bench:all": "pnpm tsx all.ts"
   },
   "devDependencies": {
-    "@keyv/redis": "^4.6.0",
+    "@keyv/redis": "^5.1.6",
     "@pricenow/bentocache": "workspace:*",
-    "cache-manager": "^6.4.3",
-    "cacheable": "^1.10.4",
-    "ioredis": "^5.8.2",
-    "keyv": "^5.5.5",
-    "tinybench": "^4.1.0"
+    "cache-manager": "^7.2.9",
+    "cacheable": "^2.5.0",
+    "ioredis": "^6.0.0",
+    "keyv": "^5.6.0",
+    "tinybench": "^6.2.2"
   }
 }

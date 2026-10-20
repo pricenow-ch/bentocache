@@ -5,11 +5,11 @@ import { REDIS_CREDENTIALS } from '../helpers/index.js'
 import { RedisDriver } from '../../src/drivers/redis.js'
 import { registerCacheDriverTestSuite } from '../helpers/driver_test_suite.js'
 
-test.group('Redis driver', (group) => {
+test.group('Redis driver', group => {
   registerCacheDriverTestSuite({
     test,
     group,
-    createDriver: (options) =>
+    createDriver: options =>
       new RedisDriver({ prefix: 'japa', connection: REDIS_CREDENTIALS, ...options }),
   })
 
@@ -19,7 +19,6 @@ test.group('Redis driver', (group) => {
 
     cleanup(async () => {
       await redis2.disconnect()
-      await ioredis.quit()
     })
 
     assert.equal(redis2.getConnection(), ioredis)
@@ -31,7 +30,6 @@ test.group('Redis driver', (group) => {
 
     cleanup(async () => {
       await redis.disconnect()
-      cluster.disconnect()
     })
 
     assert.equal(redis.getConnection(), cluster)

@@ -6,7 +6,7 @@ const identityLabel = 'fork-identity'
 const reviewer = 'yss14'
 const prMarker = '<!-- upstream-sync:pricenow-ch/bentocache -->'
 
-export const checkNames = ['lint', 'typecheck', 'build', 'tests', 'upstream-sync-tests']
+export const checkNames = ['lint', 'typecheck', 'build', 'docs', 'tests', 'upstream-sync-tests']
 
 function isManaged(pr) {
   return (
@@ -32,8 +32,8 @@ async function ensureLabel(github, name, color, description) {
 
 async function requestReview(github, pr, label) {
   if (
-    !pr.labels.some((entry) => entry.name === label) &&
-    !pr.requested_reviewers.some((entry) => entry.login === reviewer)
+    !pr.labels.some(entry => entry.name === label) &&
+    !pr.requested_reviewers.some(entry => entry.login === reviewer)
   ) {
     await github.rest.pulls.requestReviewers({
       ...repository,
@@ -113,7 +113,7 @@ export async function prepareSync({ github, core, runUrl, sleep }) {
     state: 'open',
     per_page: 100,
   })
-  let pr = pulls.find((entry) => entry.head.repo?.full_name === 'Julien-R44/bentocache')
+  let pr = pulls.find(entry => entry.head.repo?.full_name === 'Julien-R44/bentocache')
   if (pr && !isManaged(pr)) {
     core.notice(`PR #${pr.number} is managed manually; leaving it for its owner.`)
     return null
@@ -147,7 +147,7 @@ export async function prepareSync({ github, core, runUrl, sleep }) {
     })
     pr = data
   }
-  if (!pr.labels.some((label) => label.name === syncLabel)) {
+  if (!pr.labels.some(label => label.name === syncLabel)) {
     await github.rest.issues.addLabels({
       ...repository,
       issue_number: pr.number,
@@ -178,7 +178,7 @@ export async function prepareSync({ github, core, runUrl, sleep }) {
   }
 
   for (const label of [conflictLabel, identityLabel]) {
-    if (!pr.labels.some((entry) => entry.name === label)) continue
+    if (!pr.labels.some(entry => entry.name === label)) continue
     await github.rest.issues.removeLabel({ ...repository, issue_number: pr.number, name: label })
   }
   const checks = {}
@@ -222,7 +222,7 @@ export async function reportChecks({ github, checks, results, runUrl }) {
       },
     })
   }
-  return checkNames.every((name) => results[name] === 'success')
+  return checkNames.every(name => results[name] === 'success')
 }
 
 /** Merge only a managed PR whose commits still match the successfully tested plan. */

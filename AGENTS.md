@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Pricenow's fork of [Bentocache](https://github.com/Julien-R44/bentocache), a multi-tier cache for Node.js. Only the core package `packages/bentocache` is published, as `@pricenow/bentocache`. `packages/otel` and `packages/prometheus` are private companions kept for development; `docs/`, `playground/`, `benchmarks/` and `simulator/` are unpublished workspace apps.
+Pricenow's fork of [Bentocache](https://github.com/Julien-R44/bentocache), a multi-tier cache for Node.js. Only the core package `packages/bentocache` is published, as `@pricenow/bentocache`. `packages/otel` and `packages/prometheus` are private companions kept for development; `docs/`, `playground/` and `benchmarks/` are unpublished workspace apps.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Behavioural docs (grace periods, stampede protection, tags, timeouts, extending 
 
 ## Code style
 
-ESLint and Prettier come from `@julr/tooling-configs`; `pnpm lint` is the source of truth, and `pnpm lint --fix` resolves import ordering and formatting.
+Oxlint and Oxfmt use the `@julr/tooling-configs` presets. Run `pnpm lint:fix` for lint fixes and `pnpm format` for formatting; `pnpm checks` validates both and typechecks the workspace.
 
 - ESM only. Relative imports carry the `.js` extension (`'./cache_stack.js'`). Type-only imports use `import type` / inline `type`.
 - Files and directories are `snake_case`; classes `PascalCase`; driver factories `camelCase` ending in `Driver`.
@@ -40,6 +40,7 @@ Before handing work back, run `pnpm checks` and the tests touching your change. 
 ## Development workflow
 
 - Package manager is pnpm (version pinned in `package.json`); install with `pnpm install --frozen-lockfile`.
+- Workspace tooling and documentation use Node.js 24.11 or newer; the published core supports Node.js 22 or newer.
 - Branch from `main` using a type prefix: `feature/`, `fix/`, `chore/` or `refactoring/`, e.g. `fix/l2-timeout-retry`.
 - Commits follow Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`, `perf:`, `ci:`), optionally scoped (`fix(otel): …`).
 - Every user-facing change to `@pricenow/bentocache` ships with a changeset (`pnpm changeset`): patch for fixes, minor for compatible additions, major for breaking changes. Commit it with the code.

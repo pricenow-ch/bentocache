@@ -10,7 +10,6 @@ This package is experimental and may change in future versions.
 
 Bentocache provides an official OpenTelemetry instrumentation package: `@bentocache/otel`.
 
-
 It listens to Bentocache tracing channels and emits spans like:
 
 - `cache.get`
@@ -61,16 +60,16 @@ tracingChannels.cacheOperation.subscribe({
 
 ### Message properties
 
-| Property    | Type                                                                | Description                                           |
-| ----------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
-| `operation` | `'get' \| 'set' \| 'delete' \| 'deleteMany' \| 'clear' \| 'expire' \| 'expireByTag' \| 'deleteByTag'` | The operation type |
-| `key`       | `string`                                                            | Cache key with full prefix (e.g., `'users:123'`)      |
-| `keys`      | `string[]`                                                          | Multiple keys for `deleteMany` operation              |
-| `tags`      | `string[]`                                                          | Tags for `expireByTag` and `deleteByTag` operations   |
-| `store`     | `string`                                                            | Store name                                            |
-| `hit`       | `boolean`                                                           | Whether the key was found (only for `get`)            |
-| `tier`      | `'l1' \| 'l2'`                                                      | Which tier served the value (only for `get` hits)     |
-| `graced`    | `boolean`                                                           | Whether value came from grace period (only for `get`) |
+| Property    | Type                                                                                                  | Description                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `operation` | `'get' \| 'set' \| 'delete' \| 'deleteMany' \| 'clear' \| 'expire' \| 'expireByTag' \| 'deleteByTag'` | The operation type                                    |
+| `key`       | `string`                                                                                              | Cache key with full prefix (e.g., `'users:123'`)      |
+| `keys`      | `string[]`                                                                                            | Multiple keys for `deleteMany` operation              |
+| `tags`      | `string[]`                                                                                            | Tags for `expireByTag` and `deleteByTag` operations   |
+| `store`     | `string`                                                                                              | Store name                                            |
+| `hit`       | `boolean`                                                                                             | Whether the key was found (only for `get`)            |
+| `tier`      | `'l1' \| 'l2'`                                                                                        | Which tier served the value (only for `get` hits)     |
+| `graced`    | `boolean`                                                                                             | Whether value came from grace period (only for `get`) |
 
 ## Install
 
@@ -132,7 +131,7 @@ import { trace } from '@opentelemetry/api'
 
 const tracer = trace.getTracer('app')
 
-await tracer.startActiveSpan('request', async (span) => {
+await tracer.startActiveSpan('request', async span => {
   await bento.getOrSet({
     key: 'user:1',
     ttl: '5m',
