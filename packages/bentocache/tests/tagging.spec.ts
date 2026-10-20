@@ -70,8 +70,8 @@ class ClockedL2Driver extends BaseDriver implements L2CacheDriver {
 function createGate() {
   let open!: () => void
   let reached!: () => void
-  const opened = new Promise<void>((resolve) => (open = resolve))
-  const wasReached = new Promise<void>((resolve) => (reached = resolve))
+  const opened = new Promise<void>(resolve => (open = resolve))
+  const wasReached = new Promise<void>(resolve => (reached = resolve))
 
   return {
     open,
@@ -129,7 +129,7 @@ test.group('Tagging | expireByTag', () => {
     const r2 = await cache.getOrSet({ key: 'bar', factory: () => 22, tags: ['y', 'z'] })
     const r3 = await cache.getOrSet({
       key: 'baz',
-      factory: (ctx) => {
+      factory: ctx => {
         ctx.setTags(['x', 'z'])
         return 33
       },
@@ -606,7 +606,7 @@ test.group('Tagging | deleteByTag', () => {
     const r1 = cache.getOrSet({
       key: 'foo',
       tags: ['x'],
-      factory: (ctx) => {
+      factory: ctx => {
         gracedEntry = ctx.gracedEntry
         throw new Error('factory error')
       },

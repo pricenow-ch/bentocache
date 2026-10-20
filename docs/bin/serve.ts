@@ -4,6 +4,7 @@ import { Ignitor } from '@adonisjs/core'
 import { readFile } from 'node:fs/promises'
 import type { ApplicationService } from '@adonisjs/core/types'
 import { defineConfig as defineHttpConfig } from '@adonisjs/core/http'
+import { defineConfig as defineEncryptionConfig, drivers } from '@adonisjs/core/encryption'
 
 import { viteConfig } from '../config/vite.js'
 
@@ -51,7 +52,7 @@ async function defineRoutes(app: ApplicationService) {
     for (const collection of collections) {
       await collection.refresh()
       const entry = collection.findByPermalink(request.url())
-      if (entry) return entry.render({ collection, entry }).catch((error) => console.log(error))
+      if (entry) return entry.render({ collection, entry }).catch(error => console.log(error))
     }
 
     return response.notFound('Page not found')
@@ -59,14 +60,19 @@ async function defineRoutes(app: ApplicationService) {
 }
 
 new Ignitor(APP_ROOT, { importer: IMPORTER })
-  .tap((app) => {
+  .tap(app => {
     app.initiating(() => {
       app.useConfig({
         appUrl: process.env.APP_URL || '',
         app: {
-          appKey: 'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
           http: defineHttpConfig({}),
         },
+        encryption: defineEncryptionConfig({
+          default: 'legacy',
+          list: {
+            legacy: drivers.legacy({ keys: ['zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi'] }),
+          },
+        }),
         static: {
           enabled: true,
           etag: true,

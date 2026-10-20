@@ -6,12 +6,12 @@ import { createKyselyStore } from './helpers.js'
 import { POSTGRES_CREDENTIALS } from '../../helpers/index.js'
 import { registerCacheDriverTestSuite } from '../../../src/test_suite.js'
 
-test.group('Kysely | Postgres driver', (group) => {
+test.group('Kysely | Postgres driver', group => {
   registerCacheDriverTestSuite({
     test,
     group,
     supportsMilliseconds: false,
-    createDriver: (options) => {
+    createDriver: options => {
       const db = new Kysely<any>({
         dialect: new PostgresDialect({
           pool: new pg.Pool({ ...POSTGRES_CREDENTIALS }),
@@ -48,7 +48,7 @@ test.group('Kysely | Postgres driver', (group) => {
 
     const rows = await db.selectFrom('bentocache_kysely').select('key').orderBy('key').execute()
     assert.deepEqual(
-      rows.map((row) => row.key),
+      rows.map(row => row.key),
       ['japa:forever', 'japa:fresh'],
     )
   })

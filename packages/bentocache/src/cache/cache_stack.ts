@@ -137,7 +137,7 @@ export class CacheStack extends BaseDriver {
    * Returns the full keys with prefix applied
    */
   getFullKeys(keys: string[]) {
-    return keys.map((key) => this.getItemKey(key))
+    return keys.map(key => this.getItemKey(key))
   }
 
   /**

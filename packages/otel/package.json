@@ -1,75 +1,64 @@
 {
   "name": "@bentocache/otel",
-  "type": "module",
   "version": "0.1.2",
   "private": true,
   "description": "OpenTelemetry instrumentation for Bentocache",
-  "author": "Julien Ripouteau <julien@ripouteau.com>",
-  "license": "MIT",
   "keywords": [
     "bentocache",
+    "instrumentation",
     "opentelemetry",
     "otel",
-    "instrumentation",
     "tracing"
   ],
+  "license": "MIT",
+  "author": "Julien Ripouteau <julien@ripouteau.com>",
+  "files": [
+    "build"
+  ],
+  "type": "module",
+  "main": "build/index.js",
   "exports": {
     ".": "./build/index.js",
     "./types": "./build/src/types.js"
   },
-  "main": "build/index.js",
-  "files": [
-    "build"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
   "scripts": {
     "test": "c8 pnpm quick:test",
-    "quick:test": "cross-env NODE_NO_WARNINGS=1 node --enable-source-maps --loader=ts-node/esm bin/test.ts",
+    "quick:test": "cross-env NODE_NO_WARNINGS=1 node --enable-source-maps --import=tsx bin/test.ts",
     "build": "tsup-node",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "oxlint",
     "release": "pnpm build && pnpm release-it",
     "prepublishOnly": "pnpm build",
     "checks": "pnpm lint && pnpm typecheck"
   },
-  "peerDependencies": {
-    "@pricenow/bentocache": "^2.0.0-beta.0"
-  },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/core": "^2.6.1",
-    "@opentelemetry/instrumentation": "^0.214.0"
+    "@opentelemetry/core": "^2.12.0",
+    "@opentelemetry/instrumentation": "^0.223.0"
   },
   "devDependencies": {
     "@julr/utils": "^1.9.0",
-    "@opentelemetry/sdk-trace-base": "^2.6.1",
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
     "@pricenow/bentocache": "workspace:*"
   },
-  "tsup": {
-    "entry": [
-      "./index.ts",
-      "./src/types.ts"
-    ],
-    "outDir": "./build",
-    "clean": true,
-    "format": "esm",
-    "dts": true,
-    "target": "esnext"
+  "peerDependencies": {
+    "@pricenow/bentocache": "^2.0.0-beta.0"
   },
   "c8": {
-    "reporter": [
-      "text",
-      "html"
-    ],
     "exclude": [
       "bin",
       "tests/**",
       "test_helpers/**",
       "factories/**"
+    ],
+    "reporter": [
+      "text",
+      "html"
     ]
-  },
-  "publishConfig": {
-    "access": "public",
-    "tag": "latest"
   },
   "release-it": {
     "git": {
@@ -82,5 +71,16 @@
       "releaseName": "@bentocache/otel@${version}",
       "web": true
     }
+  },
+  "tsup": {
+    "entry": [
+      "./index.ts",
+      "./src/types.ts"
+    ],
+    "outDir": "./build",
+    "clean": true,
+    "format": "esm",
+    "dts": true,
+    "target": "esnext"
   }
 }

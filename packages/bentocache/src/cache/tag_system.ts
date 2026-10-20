@@ -77,12 +77,12 @@ export class TagSystem {
    */
   async #getLatestTimestamp(keys: string[]) {
     const timestamps = await Promise.all(
-      keys.map((key) =>
+      keys.map(key =>
         this.#getSetHandler.handle(key, this.#getTagFactory, this.#getSetTagOptions.cloneWith({})),
       ),
     )
 
-    return Math.max(0, ...timestamps.filter((timestamp) => typeof timestamp === 'number'))
+    return Math.max(0, ...timestamps.filter(timestamp => typeof timestamp === 'number'))
   }
 
   /**
@@ -100,8 +100,8 @@ export class TagSystem {
     if (!tags.length) return 'valid'
 
     const [deletedAt, expiredAt] = await Promise.all([
-      this.#getLatestTimestamp(tags.map((tag) => this.getTagDeletionCacheKey(tag))),
-      this.#getLatestTimestamp(tags.map((tag) => this.getTagCacheKey(tag))),
+      this.#getLatestTimestamp(tags.map(tag => this.getTagDeletionCacheKey(tag))),
+      this.#getLatestTimestamp(tags.map(tag => this.getTagCacheKey(tag))),
     ])
 
     const createdAt = entry.getCreatedAt()
@@ -140,7 +140,7 @@ export class TagSystem {
    */
   async createTagInvalidations(tags: string[], options?: CacheEntryOptions) {
     return this.#writeTagTimestamps(
-      tags.map((tag) => this.getTagCacheKey(tag)),
+      tags.map(tag => this.getTagCacheKey(tag)),
       this.#getSetTagOptions,
       options,
     )
@@ -154,7 +154,7 @@ export class TagSystem {
    */
   async createTagDeletions(tags: string[], options?: CacheEntryOptions) {
     return this.#writeTagTimestamps(
-      tags.map((tag) => this.getTagDeletionCacheKey(tag)),
+      tags.map(tag => this.getTagDeletionCacheKey(tag)),
       this.#deleteTagOptions,
       options,
     )
