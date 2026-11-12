@@ -1,5 +1,16 @@
 # bentocache
 
+## 2.0.0-beta.1
+
+### Major Changes
+
+- Require Node.js 22 or newer for the upgraded runtime dependencies. Add support for ioredis 6 alongside ioredis 5, declare support for Kysely 0.28 and 0.29, and use scoped bus type exports so Redis users do not need optional MQTT types.
+
+### Patch Changes
+
+- 4fcb763: Fix an unhandled promise rejection when the bus subscription fails, for example when a cache is disconnected before its Redis bus connection is ready. The error is now logged instead of crashing the process.
+- 07ff014: Fix Kysely cache table creation and pruning on MySQL and PostgreSQL to use timestamps consistently with expiration writes. SQLite continues to store expiration as Unix milliseconds.
+
 ## 2.0.0-beta.0
 
 ### Major Changes
