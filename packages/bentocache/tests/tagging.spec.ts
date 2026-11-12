@@ -140,6 +140,8 @@ test.group('Tagging | expireByTag', () => {
     assert.deepEqual(r3, 3)
 
     await cache.expireByTag({ tags: ['x'] })
+    // An entry created in the same millisecond as the invalidation counts as invalidated
+    await sleep(10)
 
     const r4 = await cache.get({ key: 'foo' })
     const r5 = await cache.getOrSet({ key: 'bar', factory: () => 222, tags: ['y', 'z'] })
@@ -224,6 +226,8 @@ test.group('Tagging | expireByTag', () => {
     assert.deepEqual(baz1, 3)
 
     await cache1.expireByTag({ tags: ['x'] })
+    // An entry created in the same millisecond as the invalidation counts as invalidated
+    await sleep(10)
 
     const foo2 = await cache1.get({ key: 'foo' })
     const bar2 = await cache2.getOrSet({ key: 'bar', factory: () => 222, tags: ['y', 'z'] })
